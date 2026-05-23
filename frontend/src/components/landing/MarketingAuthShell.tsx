@@ -26,26 +26,26 @@ export function MarketingAuthShell({
       : "relative z-10 flex min-h-[calc(100vh-4.25rem)] flex-col items-center justify-center px-4 py-12 sm:px-6";
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground transition-colors duration-300">
+    <div className="relative min-h-screen overflow-x-hidden text-[#444444] transition-colors duration-300 dark:text-[#e8e8e8]">
         <BlobBackground />
 
-        <header className="relative z-10 border-b border-border/60 bg-background/70 backdrop-blur-md">
+        <header className="relative z-10 border-b border-white/10 bg-[#2d2d2d] text-white">
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
             <Link href="/" className="flex items-baseline gap-0">
-              <span className="text-xl font-extrabold tracking-tight text-foreground">Lectur</span>
-              <span className="text-xl font-extrabold tracking-tight text-primary">AI</span>
+              <span className="text-xl font-extrabold tracking-tight text-white">Lectur</span>
+              <span className="text-xl font-extrabold tracking-tight text-sky-300">AI</span>
             </Link>
 
             <nav className="flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition hover:border-primary hover:text-primary"
+                className="rounded-lg border border-white/20 px-3 py-2 text-xs font-medium text-white/90 transition hover:bg-white/10"
                 aria-label="Hell- und Dunkelmodus umschalten"
               >
                 {theme === "dark" ? "☀ Light" : "☾ Dark"}
               </button>
-              <SessionNav />
+              <SessionNav tone="dark" />
             </nav>
           </div>
         </header>

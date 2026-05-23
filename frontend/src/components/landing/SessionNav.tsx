@@ -34,7 +34,12 @@ function getServerSessionSnapshot(): boolean {
 /**
  * Login/Registrieren oder Dashboard/Abmelden — abhängig von Session-Token.
  */
-export function SessionNav() {
+interface SessionNavProps {
+  /** Auf dunkler Topbar (z. B. Lectur-Hub-Stil) helle Linkfarben. */
+  tone?: "light" | "dark";
+}
+
+export function SessionNav({ tone = "light" }: SessionNavProps) {
   const router = useRouter();
   const authed = useSyncExternalStore(subscribe, getSessionSnapshot, getServerSessionSnapshot);
 
@@ -45,6 +50,25 @@ export function SessionNav() {
   }, [router]);
 
   if (authed) {
+    if (tone === "dark") {
+      return (
+        <>
+          <Link
+            href="/dashboard"
+            className="rounded-lg border border-transparent bg-[#2a9d8f] px-4 py-2 text-sm font-bold text-white shadow-[0_6px_22px_rgb(42_157_143_/_0.38)] transition hover:brightness-110"
+          >
+            Dashboard
+          </Link>
+          <button
+            type="button"
+            onClick={logout}
+            className="rounded-lg border border-white/25 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/10"
+          >
+            Abmelden
+          </button>
+        </>
+      );
+    }
     return (
       <>
         <Link
@@ -60,6 +84,25 @@ export function SessionNav() {
         >
           Abmelden
         </button>
+      </>
+    );
+  }
+
+  if (tone === "dark") {
+    return (
+      <>
+        <Link
+          href="/login"
+          className="rounded-lg border border-white/35 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+        >
+          Login
+        </Link>
+        <Link
+          href="/register"
+          className="rounded-lg border border-transparent bg-[#f5c542] px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-[#3a3a3a] shadow-[0_2px_0_rgb(0_0_0_/_0.14)] transition hover:brightness-105"
+        >
+          Registrieren
+        </Link>
       </>
     );
   }

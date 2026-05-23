@@ -11,9 +11,6 @@ function normalizeConsoleQuotedPrintableParam(value: string) {
   return value.replace(/=\s+/g, "").replace(/^3D/, "");
 }
 
-const cardShadow =
-  "0 8px 48px color-mix(in srgb, var(--primary) 7%, rgba(0,0,0,0.1)), 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent)";
-
 const ease = [0.22, 1, 0.36, 1] as const;
 
 export function VerifyEmailClient() {
@@ -71,26 +68,25 @@ export function VerifyEmailClient() {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease }}
-      className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card/65 p-10 text-center backdrop-blur-md sm:p-12"
-      style={{ boxShadow: cardShadow }}
+      className="glass-panel w-full max-w-xl overflow-hidden rounded-2xl p-10 text-center sm:p-12"
     >
       <span
         className="mb-5 inline-block rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-widest"
         style={{
-          border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
-          color: "var(--primary)",
-          backgroundColor: "color-mix(in srgb, var(--primary) 9%, transparent)",
+          border: "1px solid rgb(42 157 143 / 0.35)",
+          color: "#2a9d8f",
+          backgroundColor: "rgb(42 157 143 / 0.08)",
         }}
       >
         E-Mail
       </span>
-      <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground sm:text-base">
+      <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-[#777777] sm:text-base dark:text-zinc-400">
         LecturAI
       </p>
       <h1 className="mb-6 text-3xl font-extrabold tracking-tight sm:text-4xl md:text-5xl">
         <span
           style={{
-            background: "linear-gradient(92deg, var(--primary) 0%, var(--accent) 100%)",
+            background: "linear-gradient(92deg, #2a6f66 0%, #2a9d8f 45%, #f5c542 100%)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
@@ -101,28 +97,26 @@ export function VerifyEmailClient() {
       </h1>
 
       {status === "loading" ? (
-        <p className="text-lg text-muted-foreground sm:text-xl">Bitte warten…</p>
+        <p className="text-lg text-[#666666] sm:text-xl dark:text-zinc-400">Bitte warten…</p>
       ) : status === "ok" ? (
-        <p className="text-lg text-foreground sm:text-xl">{message}</p>
+        <p className="text-lg text-[#333333] sm:text-xl dark:text-zinc-100">{message}</p>
       ) : (
-        <p className="text-lg text-destructive sm:text-xl">{message}</p>
+        <p className="text-lg text-red-600 sm:text-xl dark:text-red-400">{message}</p>
       )}
 
       <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:justify-center">
         <Link
           href="/login"
-          className="inline-flex min-h-[3.5rem] items-center justify-center rounded-2xl px-8 py-4 text-center text-lg font-bold text-primary-foreground transition hover:brightness-110 sm:text-xl"
+          className="inline-flex min-h-[3.5rem] items-center justify-center rounded-2xl bg-[#2a9d8f] px-8 py-4 text-center text-lg font-bold text-white transition hover:brightness-110 sm:text-xl"
           style={{
-            backgroundColor: "var(--primary)",
-            boxShadow:
-              "0 0 18px color-mix(in srgb, var(--primary) 45%, transparent), 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent)",
+            boxShadow: "0 6px 24px rgb(42 157 143 / 0.35)",
           }}
         >
           Zum Login
         </Link>
         <Link
           href="/"
-          className="inline-flex min-h-[3.5rem] items-center justify-center rounded-2xl border-2 border-border px-8 py-4 text-center text-lg font-semibold text-muted-foreground transition hover:border-primary hover:text-primary sm:text-xl"
+          className="inline-flex min-h-[3.5rem] items-center justify-center rounded-2xl border-2 border-[#e0e0e0] bg-white/40 px-8 py-4 text-center text-lg font-semibold text-[#666666] transition hover:border-[#2a9d8f]/40 hover:text-[#2a9d8f] sm:text-xl dark:border-zinc-600 dark:bg-zinc-900/30 dark:text-zinc-300 dark:hover:border-teal-400/40"
         >
           Startseite
         </Link>

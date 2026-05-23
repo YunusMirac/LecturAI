@@ -9,11 +9,8 @@ import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
 import { API_URL, AUTH_ACCESS_KEY, AUTH_REFRESH_KEY } from "@/lib/api";
 import { AUTH_CHANGED_EVENT } from "@/lib/auth";
 
-const cardShadow =
-  "0 8px 48px color-mix(in srgb, var(--primary) 7%, rgba(0,0,0,0.1)), 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent)";
-
 const inputClass =
-  "min-h-[3.5rem] w-full rounded-2xl border-2 border-border bg-secondary/35 px-5 py-4 text-lg text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-ring/30 sm:text-xl";
+  "min-h-[3.5rem] w-full rounded-2xl border-2 border-[#e0e0e0] bg-white/50 px-5 py-4 text-lg text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] focus:ring-4 focus:ring-[#2a9d8f]/20 sm:text-xl dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-100";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -67,15 +64,14 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease }}
-        className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-card/65 p-10 backdrop-blur-md sm:p-12"
-        style={{ boxShadow: cardShadow }}
+        className="glass-panel w-full max-w-xl overflow-hidden rounded-2xl p-10 sm:p-12"
       >
         <span
           className="mb-5 inline-block rounded-full px-4 py-2 text-sm font-semibold uppercase tracking-widest"
           style={{
-            border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
-            color: "var(--primary)",
-            backgroundColor: "color-mix(in srgb, var(--primary) 9%, transparent)",
+            border: "1px solid rgb(42 157 143 / 0.35)",
+            color: "#2a9d8f",
+            backgroundColor: "rgb(42 157 143 / 0.08)",
           }}
         >
           Konto
@@ -141,11 +137,9 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="min-h-[3.75rem] w-full rounded-2xl py-4 text-lg font-bold text-primary-foreground transition hover:brightness-110 disabled:opacity-50 sm:text-xl"
+            className="min-h-[3.75rem] w-full rounded-2xl bg-[#2a9d8f] py-4 text-lg font-bold text-white transition hover:brightness-110 disabled:opacity-50 sm:text-xl"
             style={{
-              backgroundColor: "var(--primary)",
-              boxShadow:
-                "0 0 20px color-mix(in srgb, var(--primary) 50%, transparent), 0 4px 14px color-mix(in srgb, var(--primary) 35%, transparent)",
+              boxShadow: "0 6px 24px rgb(42 157 143 / 0.35)",
             }}
           >
             {loading ? "Wird angemeldet…" : "Einloggen"}
@@ -154,7 +148,7 @@ export default function LoginPage() {
 
         <p className="mt-8 text-center text-base text-muted-foreground sm:text-lg">
           Noch kein Konto?{" "}
-          <Link href="/register" className="font-semibold text-primary hover:underline">
+          <Link href="/register" className="font-semibold text-[#2a9d8f] hover:underline">
             Registrieren
           </Link>
         </p>

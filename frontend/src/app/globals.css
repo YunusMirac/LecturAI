@@ -99,6 +99,27 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Pastell-Mesh + Glas (BHT-Hub-ähnliche Farbwelt, nur Styling) */
+.bg-bht-mesh {
+  background-color: #fafcfe;
+  background-image:
+    radial-gradient(ellipse 88% 72% at 0% 0%, rgb(255 214 196 / 0.78) 0%, transparent 56%),
+    radial-gradient(ellipse 78% 68% at 0% 100%, rgb(198 196 242 / 0.52) 0%, transparent 54%),
+    radial-gradient(ellipse 74% 62% at 100% 6%, rgb(186 232 218 / 0.52) 0%, transparent 50%),
+    radial-gradient(ellipse 76% 64% at 100% 100%, rgb(255 242 200 / 0.68) 0%, transparent 54%),
+    radial-gradient(ellipse 90% 80% at 48% 45%, rgb(255 255 255 / 0.95) 0%, transparent 62%);
+}
+
+.dark .bg-bht-mesh {
+  background-color: #12151c;
+  background-image:
+    radial-gradient(ellipse 85% 70% at 8% 8%, rgb(120 90 110 / 0.28) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 65% at 0% 100%, rgb(70 75 130 / 0.22) 0%, transparent 52%),
+    radial-gradient(ellipse 72% 58% at 100% 0%, rgb(50 110 100 / 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse 74% 60% at 92% 92%, rgb(130 110 60 / 0.18) 0%, transparent 52%),
+    radial-gradient(ellipse 88% 75% at 50% 48%, rgb(30 35 48 / 0.85) 0%, transparent 58%);
+}
+
 @keyframes lectur-shine-sweep {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -107,6 +128,26 @@ body {
 /* ── Auth-page utilities (glass, gradient-text, btn-glow) ──────────────────── */
 
 @layer utilities {
+  .glass-panel {
+    border: 1px solid rgb(255 255 255 / 0.55);
+    background: rgb(255 255 255 / 0.58);
+    backdrop-filter: blur(20px) saturate(165%);
+    -webkit-backdrop-filter: blur(20px) saturate(165%);
+    box-shadow:
+      0 2px 3px rgb(15 23 42 / 0.04),
+      0 14px 40px rgb(15 23 42 / 0.06),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.75);
+  }
+
+  .dark .glass-panel {
+    border: 1px solid rgb(255 255 255 / 0.1);
+    background: rgb(30 35 48 / 0.55);
+    box-shadow:
+      0 2px 3px rgb(0 0 0 / 0.2),
+      0 14px 40px rgb(0 0 0 / 0.25),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.06);
+  }
+
   .glass-card {
     background: linear-gradient(
       145deg,
