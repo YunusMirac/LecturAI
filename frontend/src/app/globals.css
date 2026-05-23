@@ -1,21 +1,62 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "../shadcn/tailwind.css";
+
 @config "../../tailwind.config.ts";
 
-/* ─── Design-System LecturAI (KI-Ästhetik) ─────────────────────────────────
-   Dark-Base · Neon-Akzente · Glassmorphism · Glow · Gradients
-   Semantische Farben/Schatten/Animationen: tailwind.config.ts
-   Komposition & Seitenhülle: hier + Utility-Klassen unten
-   -------------------------------------------------------------------------- */
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-background: var(--lectur-bg);
-  --color-foreground: var(--lectur-fg);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
 }
 
 :root {
-  color-scheme: dark;
+  /* ── Semantic tokens (Light) ──────────────────────────────────────────── */
+  --background: #ffffff;
+  --foreground: #555555;
+  --card: #ffffff;
+  --card-foreground: #555555;
+  --popover: #ffffff;
+  --popover-foreground: #555555;
+  --primary: #00a0aa;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #555555;
+  --muted: #f0f0f0;
+  --muted-foreground: #777777;
+  --accent: #ffc900;
+  --accent-foreground: #555555;
+  --destructive: #ea3b07;
+  --destructive-foreground: #ffffff;
+  --border: #e0e0e0;
+  --input: #e0e0e0;
+  --ring: #00a0aa;
+  --radius: 0.25rem;
+
+  /* ── Legacy lectur tokens (für Auth-Seiten) ───────────────────────────── */
   --lectur-bg: #020617;
   --lectur-fg: #f8fafc;
   --lectur-glass-fill: color-mix(in srgb, #0f172a 72%, transparent);
@@ -24,67 +65,48 @@
   --lectur-glow-cyan: rgba(34, 211, 238, 0.35);
 }
 
+.dark {
+  /* ── Semantic tokens (Dark) ───────────────────────────────────────────── */
+  --background: #1a1a1a;
+  --foreground: #f5f5f5;
+  --card: #2a2a2a;
+  --card-foreground: #f5f5f5;
+  --popover: #2a2a2a;
+  --popover-foreground: #f5f5f5;
+  --primary: #00a0aa;
+  --primary-foreground: #ffffff;
+  --secondary: #333333;
+  --secondary-foreground: #f5f5f5;
+  --muted: #333333;
+  --muted-foreground: #999999;
+  --accent: #ffc900;
+  --accent-foreground: #1a1a1a;
+  --destructive: #ea3b07;
+  --destructive-foreground: #ffffff;
+  --border: #444444;
+  --input: #444444;
+  --ring: #00a0aa;
+}
+
 html {
   scroll-behavior: smooth;
 }
 
 body {
   min-height: 100%;
-  background-color: var(--lectur-bg);
-  color: var(--lectur-fg);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-}
-
-/* Animierter Mesh-Layer (magischer Tiefen-Effekt) */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: radial-gradient(
-      ellipse 120% 80% at 20% 0%,
-      rgba(139, 92, 246, 0.22) 0%,
-      transparent 55%
-    ),
-    radial-gradient(
-      ellipse 100% 60% at 90% 10%,
-      rgba(34, 211, 238, 0.16) 0%,
-      transparent 50%
-    ),
-    radial-gradient(
-      ellipse 80% 70% at 10% 90%,
-      rgba(52, 211, 153, 0.1) 0%,
-      transparent 50%
-    );
-  animation: lectur-aurora 18s ease-in-out infinite;
-}
-
-@keyframes lectur-aurora {
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.88;
-    transform: scale(1.02);
-  }
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
 }
 
 @keyframes lectur-shine-sweep {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-/* ─── Wiederverwendbare „KI“-Utilities ─────────────────────────────────── */
+/* ── Auth-page utilities (glass, gradient-text, btn-glow) ──────────────────── */
 
 @layer utilities {
-  /** Milchglas-Karte */
   .glass-card {
     background: linear-gradient(
       145deg,
@@ -105,20 +127,13 @@ body::before {
       0 0 28px rgba(139, 92, 246, 0.2), 0 16px 48px rgba(0, 0, 0, 0.4);
   }
 
-  /** Verlaufstext (Überschriften) */
   .text-gradient-lectur {
-    background-image: linear-gradient(
-      92deg,
-      #f5d0fe 0%,
-      #a5f3fc 45%,
-      #6ee7b7 95%
-    );
+    background-image: linear-gradient(92deg, #f5d0fe 0%, #a5f3fc 45%, #6ee7b7 95%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
-  /** Dezentes Leuchten am Rand */
   .ring-glow-violet {
     box-shadow: 0 0 0 1px color-mix(in srgb, #a78bfa 40%, transparent),
       0 0 32px rgba(139, 92, 246, 0.25);
@@ -129,14 +144,8 @@ body::before {
       0 0 28px rgba(34, 211, 238, 0.22);
   }
 
-  /** CTA: Kurs-Code / starke Aktionen */
   .btn-glow-primary {
-    background: linear-gradient(
-      125deg,
-      #7c3aed 0%,
-      #6366f1 40%,
-      #0891b2 100%
-    );
+    background: linear-gradient(125deg, #7c3aed 0%, #6366f1 40%, #0891b2 100%);
     color: #f8fafc;
     font-weight: 600;
     border: 1px solid color-mix(in srgb, #e9d5ff 35%, transparent);
@@ -157,7 +166,6 @@ body::before {
     transform: translateY(0);
   }
 
-  /** Shine-Overlay für Karten (optional per group/peer kombinierbar) */
   .shine-sweep {
     position: relative;
     overflow: hidden;

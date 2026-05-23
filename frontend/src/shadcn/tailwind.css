@@ -1,0 +1,8 @@
+/* Lokaler Shadcn/tailwind-Stub – setzt die Border-Farbe auf das semantische Token. */
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
+}

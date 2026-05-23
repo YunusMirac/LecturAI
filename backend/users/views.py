@@ -1,4 +1,4 @@
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -37,14 +37,17 @@ class RegisterView(APIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = email_verification_token.make_token(user)
         frontend = getattr(settings, "FRONTEND_PUBLIC_URL", "").rstrip("/")
-        query = urlencode({"uid": uid, "token": token})
+        query = urlencode({"uid": uid, "token": token}, quote_via=quote)
         verify_url = f"{frontend}/verify-email?{query}"
 
-        subject = "LecturAI – E-Mail bestätigen"
+        subject = "LecturAI - E-Mail bestaetigen"
         body = (
-            f"Hallo,\n\nbitte bestätige deine E-Mail mit diesem Link:\n\n{verify_url}\n\n"
+            f"Hallo,\n\nbitte bestaetige deine E-Mail mit diesem Link:\n\n{verify_url}\n\n"
             f"Wenn du dich nicht registriert hast, ignoriere diese Nachricht.\n"
         )
+        if settings.DEBUG:
+            print(f"DEV_VERIFY_EMAIL_URL={verify_url}")
+
         send_mail(
             subject,
             body,
@@ -53,13 +56,14 @@ class RegisterView(APIView):
             fail_silently=False,
         )
 
-        return Response(
-            {
-                "detail": "Registrierung erfolgreich. Bitte E-Mail bestätigen, danach Login möglich.",
-                "email": user.email,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        response_data = {
+            "detail": "Registrierung erfolgreich. Bitte E-Mail bestätigen, danach Login möglich.",
+            "email": user.email,
+        }
+        if settings.DEBUG:
+            response_data["dev_verify_url"] = verify_url
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class VerifyEmailView(APIView):

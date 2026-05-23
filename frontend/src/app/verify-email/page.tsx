@@ -1,20 +1,29 @@
 import { Suspense } from "react";
 
+import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
+
 import { VerifyEmailClient } from "./VerifyEmailClient";
+
+const cardShadow =
+  "0 8px 48px color-mix(in srgb, var(--primary) 7%, rgba(0,0,0,0.1)), 0 0 0 1px color-mix(in srgb, var(--border) 60%, transparent)";
+
+function VerifyFallback() {
+  return (
+    <div
+      className="w-full max-w-xl rounded-2xl border border-border bg-card/65 p-12 text-center text-lg text-muted-foreground backdrop-blur-md sm:p-14"
+      style={{ boxShadow: cardShadow }}
+    >
+      Lädt…
+    </div>
+  );
+}
 
 export default function VerifyEmailPage() {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center px-4 py-16">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-lectur-accent-violet/50 to-transparent" />
-      <Suspense
-        fallback={
-          <div className="glass-card w-full max-w-md rounded-3xl p-8 text-center text-lectur-muted ring-1 ring-white/10">
-            Lädt…
-          </div>
-        }
-      >
+    <MarketingAuthShell>
+      <Suspense fallback={<VerifyFallback />}>
         <VerifyEmailClient />
       </Suspense>
-    </main>
+    </MarketingAuthShell>
   );
 }

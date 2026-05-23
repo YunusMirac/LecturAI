@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+
 import "./globals.css";
+
+const themeInitScript = `(function(){try{var t=localStorage.getItem("lectur-theme");document.documentElement.classList.toggle("dark",t!=="light");}catch(e){document.documentElement.classList.add("dark");}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,11 +29,13 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="de"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-lectur-void text-lectur-foreground antialiased selection:bg-lectur-accent-violet-core/40 selection:text-white">
-        {children}
+      <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-primary/25 selection:text-foreground">
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
