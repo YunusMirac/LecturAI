@@ -1,21 +1,21 @@
-from urllib.parse import quote, urlencode
-
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.core.mail import send_mail
-from django.utils.encoding import force_bytes, force_str
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import EmailTokenObtainPairSerializer, RegisterSerializer
-from .tokens import email_verification_token
+from users.models import Invitation
+from api.permissions import IsAdmin, IsTeacher, profile_for_user
 
-User = get_user_model()
+from .serializers import (
+    EmailTokenObtainPairSerializer,
+    InvitationCreateSerializer,
+    InvitationCreatedSerializer,
+    RegisterSerializer,
+)
+from .invitations import create_student_invitation, create_teacher_invitation
 
 
 class EmailTokenObtainPairView(TokenObtainPairView):
@@ -25,6 +25,11 @@ class EmailTokenObtainPairView(TokenObtainPairView):
 
 
 class RegisterView(APIView):
+    """
+    Whitelist-Registrierung: `invite_token` Pflicht, Rolle aus `invitations`.
+    Kein freies Selbst-Signup ohne Einladung.
+    """
+
     permission_classes = [AllowAny]
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "register"
@@ -32,59 +37,60 @@ class RegisterView(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        serializer.save()
 
-        uid = urlsafe_base64_encode(force_bytes(user.pk))
-        token = email_verification_token.make_token(user)
-        frontend = getattr(settings, "FRONTEND_PUBLIC_URL", "").rstrip("/")
-        query = urlencode({"uid": uid, "token": token}, quote_via=quote)
-        verify_url = f"{frontend}/verify-email?{query}"
-
-        subject = "LecturAI - E-Mail bestaetigen"
-        body = (
-            f"Hallo,\n\nbitte bestaetige deine E-Mail mit diesem Link:\n\n{verify_url}\n\n"
-            f"Wenn du dich nicht registriert hast, ignoriere diese Nachricht.\n"
-        )
-        if settings.DEBUG:
-            print(f"DEV_VERIFY_EMAIL_URL={verify_url}")
-
-        send_mail(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [user.email],
-            fail_silently=False,
-        )
-
-        response_data = {
-            "detail": "Registrierung erfolgreich. Bitte E-Mail bestätigen, danach Login möglich.",
-            "email": user.email,
-        }
-        if settings.DEBUG:
-            response_data["dev_verify_url"] = verify_url
-
-        return Response(response_data, status=status.HTTP_201_CREATED)
-
-
-class VerifyEmailView(APIView):
-    permission_classes = [AllowAny]
-
-    def get(self, request, uidb64, token):
-        try:
-            uid = force_str(urlsafe_base64_decode(uidb64))
-            user = User.objects.get(pk=uid)
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            user = None
-
-        if user is not None and email_verification_token.check_token(user, token):
-            user.is_active = True
-            user.save(update_fields=["is_active"])
-            return Response(
-                {
-                    "detail": "E-Mail bestätigt. Du kannst dich jetzt mit E-Mail und Passwort anmelden."
-                }
-            )
         return Response(
-            {"detail": "Ungültiger oder abgelaufener Bestätigungslink."},
-            status=status.HTTP_400_BAD_REQUEST,
+            {
+                "detail": "Registrierung erfolgreich. Du kannst dich jetzt anmelden.",
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class InvitationCreateView(APIView):
+    """
+    POST /api/invitations/
+    - Admin: { "email", "role": "teacher" } — plattformweite Lehrer-Einladung.
+    - Lehrer: { "email", "role": "student", "course_id" } — Schüler:in in den Kurs.
+    """
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "invitations"
+
+    def post(self, request):
+        serializer = InvitationCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        profile = profile_for_user(request.user)
+        if profile is None:
+            raise PermissionDenied("Kein Profil für dieses Konto.")
+
+        role = serializer.validated_data["role"]
+        email = serializer.validated_data["email"]
+        course_id = serializer.validated_data.get("course_id")
+
+        try:
+            if role == Invitation.Role.TEACHER:
+                if not IsAdmin().has_permission(request, self):
+                    raise PermissionDenied("Nur Admins dürfen Lehrkräfte einladen.")
+                inv = create_teacher_invitation(invited_by=profile, email=email)
+            else:
+                if not IsTeacher().has_permission(request, self):
+                    raise PermissionDenied("Nur Lehrkräfte dürfen Schüler:innen einladen.")
+                if course_id is None:
+                    raise ValidationError({"course_id": "course_id ist erforderlich."})
+                inv = create_student_invitation(
+                    invited_by=profile,
+                    email=email,
+                    course_id=course_id,
+                )
+        except PermissionDenied:
+            raise
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
+        return Response(
+            InvitationCreatedSerializer(inv).data,
+            status=status.HTTP_201_CREATED,
         )

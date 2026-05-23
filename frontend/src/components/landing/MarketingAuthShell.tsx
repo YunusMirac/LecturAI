@@ -36,7 +36,7 @@ export function MarketingAuthShell({
               <span className="text-xl font-extrabold tracking-tight text-sky-300">AI</span>
             </Link>
 
-            <nav className="flex items-center gap-2 sm:gap-3">
+            <nav className="ml-4 flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={toggleTheme}

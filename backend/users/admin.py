@@ -1,3 +1,5 @@
 from django.contrib import admin
+from users.models import Invitation, Profiles
 
-# Register your models here.
+admin.site.register(Profiles)
+admin.site.register(Invitation)

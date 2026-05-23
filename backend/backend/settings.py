@@ -12,9 +12,11 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 import os
-import dj_database_url
-from dotenv import load_dotenv
 from datetime import timedelta
+
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -25,8 +27,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-#(93$)wjb*-8t6o2xwf3679@bj#)fk0u9ujf8f2z@@j!w#4qey"
+# In Produktion zwingend DJANGO_SECRET_KEY setzen (lang, zufällig).
+SECRET_KEY = os.environ.get(
+    "DJANGO_SECRET_KEY",
+    "django-insecure-#(93$)wjb*-8t6o2xwf3679@bj#)fk0u9ujf8f2z@@j!w#4qey",
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -43,15 +48,15 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'rest_framework',
+    "rest_framework",
     "api",
     "users",
-    'corsheaders',
-    'rest_framework_simplejwt',
+    "corsheaders",
+    "rest_framework_simplejwt",
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -84,9 +89,14 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Supabase Datenbank-Verbindung
+# Supabase / PostgreSQL — Connection String aus der Umgebung
+_database_url = os.environ.get("DATABASE_URL")
+if not _database_url:
+    raise ImproperlyConfigured(
+        "Umgebungsvariable DATABASE_URL fehlt (PostgreSQL-Connection-String, z. B. Supabase)."
+    )
 DATABASES = {
-    'default': dj_database_url.parse(os.environ.get("DATABASE_URL"))
+    "default": dj_database_url.parse(_database_url, conn_max_age=600),
 }
 
 
@@ -127,12 +137,13 @@ REST_FRAMEWORK = {
         "anon": "10/day",
         "register": "10/hour",
         "login": "30/hour",
+        "invitations": "60/hour",
     },
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
 EMAIL_BACKEND = os.environ.get(
@@ -146,7 +157,7 @@ FRONTEND_PUBLIC_URL = os.environ.get("FRONTEND_PUBLIC_URL", "http://localhost:30
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "de-de"
 
 TIME_ZONE = "UTC"
 

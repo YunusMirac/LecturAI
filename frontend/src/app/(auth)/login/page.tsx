@@ -6,7 +6,13 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
-import { API_URL, AUTH_ACCESS_KEY, AUTH_REFRESH_KEY } from "@/lib/api";
+import {
+  AUTH_ACCESS_KEY,
+  AUTH_REFRESH_KEY,
+  AUTH_USER_EMAIL_KEY,
+  AUTH_USER_ROLE_KEY,
+  postAuthToken,
+} from "@/lib/api";
 import { AUTH_CHANGED_EVENT } from "@/lib/auth";
 
 const inputClass =
@@ -26,31 +32,20 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/token/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const msg =
-          typeof data.detail === "string"
-            ? data.detail
-            : Array.isArray(data.non_field_errors)
-              ? data.non_field_errors[0]
-              : "Anmeldung fehlgeschlagen.";
-        setError(msg);
+      const result = await postAuthToken(email, password);
+      if (!result.ok) {
+        setError(result.errorMessage);
         return;
       }
-      if (data.access && data.refresh) {
-        sessionStorage.setItem(AUTH_ACCESS_KEY, data.access);
-        sessionStorage.setItem(AUTH_REFRESH_KEY, data.refresh);
-        window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
-        router.push("/dashboard");
-        router.refresh();
-        return;
-      }
-      setError("Unerwartete Antwort vom Server.");
+      sessionStorage.setItem(AUTH_ACCESS_KEY, result.access);
+      sessionStorage.setItem(AUTH_REFRESH_KEY, result.refresh);
+      if (result.email) sessionStorage.setItem(AUTH_USER_EMAIL_KEY, result.email);
+      else sessionStorage.removeItem(AUTH_USER_EMAIL_KEY);
+      if (result.role != null) sessionStorage.setItem(AUTH_USER_ROLE_KEY, result.role);
+      else sessionStorage.removeItem(AUTH_USER_ROLE_KEY);
+      window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+      router.push("/dashboard");
+      router.refresh();
     } catch {
       setError("Netzwerkfehler — läuft das Backend?");
     } finally {
@@ -74,7 +69,7 @@ export default function LoginPage() {
             backgroundColor: "rgb(42 157 143 / 0.08)",
           }}
         >
-          Konto
+          Mein Konto
         </span>
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground sm:text-base">
           LecturAI

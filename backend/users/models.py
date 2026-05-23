@@ -1,14 +1,15 @@
 """
-Unmanaged ORM-Spiegel für Identität & Django-Auth-Tabellen (Supabase/PostgreSQL).
+Unmanaged ORM-Spiegel für Django-Auth- und Profil-Tabellen (Supabase/PostgreSQL).
 
-Best Practice: Tabellen bleiben physisch unverändert (`db_table` wie in der DB).
-Die App `api` enthält den Rest des Schemas; hier nur das, was zur Nutzerverwaltung gehört.
+- `Profiles` (`profiles`), `Invitation` (`invitations`): Nutzeridentität & Onboarding.
+- Kurse, Quiz, …: `api.models` (gleiche DB, `managed=False`).
 """
 
+from __future__ import annotations
+
+import uuid
+
 from django.db import models
-
-
-# --- Django auth_* (Spiegel) -------------------------------------------------
 
 
 class AuthGroup(models.Model):
@@ -80,10 +81,14 @@ class AuthUserUserPermissions(models.Model):
         unique_together = (("user", "permission"),)
 
 
-# --- App-Profil (LecturAI) ---------------------------------------------------
-
-
 class Profiles(models.Model):
+    """Tabelle `profiles` — Rollen: admin, teacher, student."""
+
+    class Role(models.TextChoices):
+        ADMIN = "admin", "Admin"
+        TEACHER = "teacher", "Teacher"
+        STUDENT = "student", "Student"
+
     id = models.UUIDField(primary_key=True)
     email = models.TextField(unique=True)
     role = models.TextField()
@@ -93,3 +98,48 @@ class Profiles(models.Model):
     class Meta:
         managed = False
         db_table = "profiles"
+
+
+class Invitation(models.Model):
+    """
+    Tabelle `invitations` — Whitelist-Registrierung.
+    - Lehrer-Einladung (nur Admin): role=teacher, course_id NULL.
+    - Schüler-Einladung (Lehrer): role=student, course_id Pflicht.
+    """
+
+    class Role(models.TextChoices):
+        TEACHER = "teacher", "Teacher"
+        STUDENT = "student", "Student"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ACCEPTED = "accepted", "Accepted"
+        DECLINED = "declined", "Declined"
+        EXPIRED = "expired", "Expired"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    course = models.ForeignKey(
+        "api.Courses",
+        models.DO_NOTHING,
+        db_column="course_id",
+        blank=True,
+        null=True,
+        related_name="invitations",
+    )
+    invited_by = models.ForeignKey(
+        Profiles,
+        models.DO_NOTHING,
+        db_column="invited_by",
+        related_name="invitations_sent",
+    )
+    email = models.TextField()
+    role = models.TextField()
+    invite_token = models.TextField(unique=True)
+    status = models.TextField()
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField()
+    accepted_at = models.DateTimeField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = "invitations"

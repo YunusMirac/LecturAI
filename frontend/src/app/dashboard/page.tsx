@@ -7,24 +7,30 @@ import { BookOpen, Loader2, LogOut } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
-import { API_URL } from "@/lib/api";
-import { clearAuth, getAccessToken } from "@/lib/auth";
+import { fetchCourses, type Course } from "@/lib/api";
+import { AUTH_CHANGED_EVENT, clearAuth, getAccessToken, getStoredUserSession, roleLabelDe } from "@/lib/auth";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-type Course = {
-  id: string;
-  name: string;
-  semester: string | null;
-  created_at?: string;
-  updated_at?: string;
-};
+/** `undefined` = vor Browser-Mount (kein sessionStorage), verhindert Hydration-Mismatch beim Reload. */
+type UserSessionState =
+  | undefined
+  | null
+  | { email: string | null; role: string | null };
 
 export default function DashboardPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userSession, setUserSession] = useState<UserSessionState>(undefined);
+
+  useEffect(() => {
+    const sync = () => setUserSession(getStoredUserSession());
+    sync();
+    window.addEventListener(AUTH_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, sync);
+  }, []);
 
   const loadCourses = useCallback(async () => {
     const token = getAccessToken();
@@ -35,22 +41,22 @@ export default function DashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/courses/`, {
-        headers: { Authorization: `Bearer ${token}` },
-        cache: "no-store",
-      });
-      if (res.status === 401) {
-        clearAuth();
-        router.replace("/login");
-        return;
-      }
-      if (!res.ok) {
-        setError("Kurse konnten nicht geladen werden.");
+      const result = await fetchCourses(token);
+      if (!result.ok) {
+        if (result.reason === "unauthorized") {
+          clearAuth();
+          router.replace("/login");
+          return;
+        }
+        if (result.reason === "network") {
+          setError("Netzwerkfehler — läuft das Backend?");
+        } else {
+          setError("Kurse konnten nicht geladen werden.");
+        }
         setCourses([]);
         return;
       }
-      const data = (await res.json()) as Course[];
-      setCourses(Array.isArray(data) ? data : []);
+      setCourses(result.courses);
     } catch {
       setError("Netzwerkfehler — läuft das Backend?");
       setCourses([]);
@@ -91,6 +97,14 @@ export default function DashboardPage() {
               Alle Kurse, in denen du als Lehrkraft eingetragen bist oder als Mitglied
               teilnimmst.
             </p>
+            {userSession !== undefined &&
+            userSession &&
+            (userSession.email || userSession.role) ? (
+              <p className="mt-3 text-sm font-medium text-[#2a9d8f] dark:text-teal-300">
+                {roleLabelDe(userSession.role)}
+                {userSession.email ? <> · {userSession.email}</> : null}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <button

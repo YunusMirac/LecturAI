@@ -2,31 +2,37 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
-import { API_URL } from "@/lib/api";
+import { postRegister } from "@/lib/api";
 
 const inputClass =
   "min-h-[3.5rem] w-full rounded-2xl border-2 border-[#e0e0e0] bg-white/50 px-5 py-4 text-lg text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] focus:ring-4 focus:ring-[#2a9d8f]/20 sm:text-xl dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-100";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const searchParams = useSearchParams();
+  const [inviteToken, setInviteToken] = useState(
+    () => searchParams.get("invite_token") ?? searchParams.get("token") ?? "",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [role, setRole] = useState<"student" | "teacher">("student");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [devVerifyUrl, setDevVerifyUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setDevVerifyUrl(null);
+    if (!inviteToken.trim()) {
+      setError("Einladungstoken fehlt. Nutze den Link aus deiner Einladungs-E-Mail (?invite_token=…).");
+      return;
+    }
     if (password !== passwordConfirm) {
       setError("Passwörter stimmen nicht überein.");
       return;
@@ -37,35 +43,17 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/auth/register/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          password,
-          password_confirm: passwordConfirm,
-          role,
-        }),
+      const result = await postRegister({
+        inviteToken: inviteToken.trim(),
+        email,
+        password,
+        passwordConfirm,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const first =
-          typeof data.email?.[0] === "string"
-            ? data.email[0]
-            : typeof data.password_confirm?.[0] === "string"
-              ? data.password_confirm[0]
-              : typeof data.detail === "string"
-                ? data.detail
-                : "Registrierung fehlgeschlagen.";
-        setError(first);
+      if (!result.ok) {
+        setError(result.errorMessage);
         return;
       }
-      setSuccess(
-        typeof data.detail === "string"
-          ? data.detail
-          : "Registrierung erfolgreich. Bitte E-Mail bestätigen."
-      );
-      setDevVerifyUrl(typeof data.dev_verify_url === "string" ? data.dev_verify_url : null);
+      setSuccess(result.detail);
       setPassword("");
       setPasswordConfirm("");
     } catch {
@@ -91,7 +79,7 @@ export default function RegisterPage() {
             backgroundColor: "rgb(42 157 143 / 0.08)",
           }}
         >
-          Neu hier
+          Einladung erforderlich
         </span>
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground sm:text-base">
           LecturAI
@@ -112,10 +100,31 @@ export default function RegisterPage() {
         <form onSubmit={onSubmit} className="space-y-6">
           <div>
             <label
+              htmlFor="invite_token"
+              className="mb-2 block text-base font-semibold text-muted-foreground sm:text-lg"
+            >
+              Einladungstoken
+            </label>
+            <input
+              id="invite_token"
+              type="text"
+              autoComplete="off"
+              required
+              value={inviteToken}
+              onChange={(e) => setInviteToken(e.target.value)}
+              placeholder="Aus dem Einladungs-Link"
+              className={inputClass}
+            />
+            <p className="mt-2 text-sm text-muted-foreground">
+              Registrierung nur mit gültigem Token. Der Link aus der E-Mail füllt das Feld oft automatisch.
+            </p>
+          </div>
+          <div>
+            <label
               htmlFor="email"
               className="mb-2 block text-base font-semibold text-muted-foreground sm:text-lg"
             >
-              E-Mail
+              E-Mail (wie in der Einladung)
             </label>
             <input
               id="email"
@@ -126,23 +135,6 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               className={inputClass}
             />
-          </div>
-          <div>
-            <label
-              htmlFor="role"
-              className="mb-2 block text-base font-semibold text-muted-foreground sm:text-lg"
-            >
-              Rolle
-            </label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as "student" | "teacher")}
-              className={inputClass}
-            >
-              <option value="student">Schüler/in</option>
-              <option value="teacher">Lehrkraft</option>
-            </select>
           </div>
           <div>
             <label
@@ -189,14 +181,12 @@ export default function RegisterPage() {
           {success ? (
             <div className="rounded-2xl border border-primary/35 bg-primary/10 px-4 py-3 text-base text-foreground sm:text-lg">
               <p>{success}</p>
-              {devVerifyUrl ? (
-                <Link
-                  href={devVerifyUrl}
-                  className="mt-3 inline-block font-semibold text-primary underline underline-offset-4"
-                >
-                  Dev-Link zum Verifizieren öffnen
-                </Link>
-              ) : null}
+              <Link
+                href="/login"
+                className="mt-4 inline-block font-semibold text-[#2a9d8f] underline underline-offset-4"
+              >
+                Zum Login
+              </Link>
             </div>
           ) : null}
 
@@ -228,5 +218,21 @@ export default function RegisterPage() {
         </p>
       </motion.div>
     </MarketingAuthShell>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <MarketingAuthShell>
+          <div className="glass-panel mx-auto w-full max-w-xl rounded-2xl p-12 text-center text-muted-foreground">
+            Lädt…
+          </div>
+        </MarketingAuthShell>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

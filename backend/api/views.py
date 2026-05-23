@@ -6,16 +6,16 @@ from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 
+from api.models import CourseMembers, Courses
 from users.models import Profiles
-
-from .models import CourseMembers, Courses
-from .serializers import CourseSerializer
+from api.permissions import profile_for_user
+from api.serializers import CourseSerializer
 
 
 class CourseListCreateView(generics.ListCreateAPIView):
     """
-    GET: Kurse des Nutzers (als Lehrende:r oder als Mitglied).
-    POST: Neuer Kurs (nur Rolle teacher); teacher/zeiten werden serverseitig gesetzt.
+    GET: Kurse (Lehrkraft: eigene; Mitglied: eingeschrieben; Admin: alle).
+    POST: Neuer Kurs (nur Lehrkraft).
     """
 
     permission_classes = [IsAuthenticated]
@@ -23,9 +23,12 @@ class CourseListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        profile = Profiles.objects.filter(email__iexact=user.email).first()
+        profile = profile_for_user(user)
         if profile is None:
             return Courses.objects.none()
+
+        if profile.role == Profiles.Role.ADMIN:
+            return Courses.objects.all().order_by("-updated_at")
 
         member_ids = CourseMembers.objects.filter(student=profile).values_list(
             "course_id", flat=True
@@ -37,10 +40,10 @@ class CourseListCreateView(generics.ListCreateAPIView):
         )
 
     def perform_create(self, serializer):
-        profile = Profiles.objects.filter(email__iexact=self.request.user.email).first()
+        profile = profile_for_user(self.request.user)
         if profile is None:
             raise PermissionDenied("Kein Profil für dieses Konto.")
-        if profile.role != "teacher":
+        if profile.role != Profiles.Role.TEACHER:
             raise PermissionDenied("Nur Lehrkräfte können Kurse anlegen.")
 
         now = timezone.now()

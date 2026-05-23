@@ -2,10 +2,47 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 
 import { AUTH_ACCESS_KEY } from "@/lib/api";
-import { AUTH_CHANGED_EVENT, clearAuth } from "@/lib/auth";
+import { AUTH_CHANGED_EVENT, clearAuth, getStoredUserSession, roleLabelDe } from "@/lib/auth";
+
+type NavSession = { authed: false } | { authed: true; email: string | null; role: string | null };
+
+/** Muss bei jedem Aufruf identisch sein (React 19 / useSyncExternalStore). */
+const SNAPSHOT_LOGGED_OUT = '{"authed":false}';
+
+function readNavSessionSnapshot(): string {
+  if (typeof window === "undefined") return SNAPSHOT_LOGGED_OUT;
+  try {
+    if (!sessionStorage.getItem(AUTH_ACCESS_KEY)) return SNAPSHOT_LOGGED_OUT;
+    const u = getStoredUserSession();
+    return JSON.stringify({
+      authed: true,
+      email: u?.email ?? null,
+      role: u?.role ?? null,
+    });
+  } catch {
+    return SNAPSHOT_LOGGED_OUT;
+  }
+}
+
+function parseNavSnapshot(json: string): NavSession {
+  if (json === SNAPSHOT_LOGGED_OUT) return { authed: false };
+  try {
+    const o = JSON.parse(json) as Record<string, unknown>;
+    if (o.authed === true) {
+      return {
+        authed: true,
+        email: o.email == null ? null : String(o.email),
+        role: o.role == null ? null : String(o.role),
+      };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { authed: false };
+}
 
 function subscribe(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
@@ -18,17 +55,12 @@ function subscribe(onStoreChange: () => void) {
   };
 }
 
-function getSessionSnapshot(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return !!sessionStorage.getItem(AUTH_ACCESS_KEY);
-  } catch {
-    return false;
-  }
+function getSessionSnapshot(): string {
+  return readNavSessionSnapshot();
 }
 
-function getServerSessionSnapshot(): boolean {
-  return false;
+function getServerSessionSnapshot(): string {
+  return SNAPSHOT_LOGGED_OUT;
 }
 
 /**
@@ -41,7 +73,9 @@ interface SessionNavProps {
 
 export function SessionNav({ tone = "light" }: SessionNavProps) {
   const router = useRouter();
-  const authed = useSyncExternalStore(subscribe, getSessionSnapshot, getServerSessionSnapshot);
+  const raw = useSyncExternalStore(subscribe, getSessionSnapshot, getServerSessionSnapshot);
+  const session = useMemo(() => parseNavSnapshot(raw), [raw]);
+  const authed = session.authed;
 
   const logout = useCallback(() => {
     clearAuth();
@@ -49,10 +83,34 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
     router.refresh();
   }, [router]);
 
+  const userLine =
+    authed && session.authed ? (
+      <div
+        className={
+          tone === "dark"
+            ? "mr-auto max-w-[min(100%,14rem)] text-left text-xs leading-tight text-white/80 sm:max-w-[20rem] sm:text-right"
+            : "mr-auto max-w-[min(100%,14rem)] text-left text-xs leading-tight text-muted-foreground sm:max-w-[20rem] sm:text-right"
+        }
+        title={session.email ?? undefined}
+      >
+        <span className={tone === "dark" ? "font-semibold text-white" : "font-semibold text-foreground"}>
+          {roleLabelDe(session.role)}
+        </span>
+        {session.email ? (
+          <>
+            <span className={tone === "dark" ? "text-white/50" : "text-muted-foreground/80"}> · </span>
+            <span className="break-all">{session.email}</span>
+          </>
+        ) : null}
+      </div>
+    ) : null;
+
   if (authed) {
     if (tone === "dark") {
       return (
-        <>
+        <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+          {userLine}
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
           <Link
             href="/dashboard"
             className="rounded-lg border border-transparent bg-[#2a9d8f] px-4 py-2 text-sm font-bold text-white shadow-[0_6px_22px_rgb(42_157_143_/_0.38)] transition hover:brightness-110"
@@ -66,11 +124,14 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
           >
             Abmelden
           </button>
-        </>
+          </div>
+        </div>
       );
     }
     return (
-      <>
+      <div className="flex min-w-0 flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end">
+        {userLine}
+        <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         <Link
           href="/dashboard"
           className="rounded-lg border-2 border-primary bg-primary px-4 py-2 text-sm font-bold text-primary-foreground shadow-[0_0_14px_color-mix(in_srgb,var(--primary)_35%,transparent)] transition hover:brightness-110"
@@ -84,7 +145,8 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
         >
           Abmelden
         </button>
-      </>
+        </div>
+      </div>
     );
   }
 
