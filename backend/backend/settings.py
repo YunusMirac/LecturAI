@@ -138,6 +138,7 @@ REST_FRAMEWORK = {
         "register": "10/hour",
         "login": "30/hour",
         "invitations": "60/hour",
+        "admin_users": "120/hour",
     },
 }
 

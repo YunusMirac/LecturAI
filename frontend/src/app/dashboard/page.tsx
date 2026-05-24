@@ -7,6 +7,8 @@ import { BookOpen, Loader2, LogOut } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
+import { AdminPanel } from "@/components/dashboard/AdminPanel";
+import { TeacherPanel } from "@/components/dashboard/TeacherPanel";
 import { fetchCourses, type Course } from "@/lib/api";
 import { AUTH_CHANGED_EVENT, clearAuth, getAccessToken, getStoredUserSession, roleLabelDe } from "@/lib/auth";
 
@@ -24,9 +26,13 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userSession, setUserSession] = useState<UserSessionState>(undefined);
+  const [clientToken, setClientToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const sync = () => setUserSession(getStoredUserSession());
+    const sync = () => {
+      setUserSession(getStoredUserSession());
+      setClientToken(getAccessToken());
+    };
     sync();
     window.addEventListener(AUTH_CHANGED_EVENT, sync);
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, sync);
@@ -124,6 +130,17 @@ export default function DashboardPage() {
             </button>
           </div>
         </motion.div>
+
+        {clientToken && userSession !== undefined && userSession?.role === "admin" ? (
+          <AdminPanel accessToken={clientToken} />
+        ) : null}
+        {clientToken && userSession !== undefined && userSession?.role === "teacher" ? (
+          <TeacherPanel
+            accessToken={clientToken}
+            courses={courses}
+            onCoursesChanged={() => void loadCourses()}
+          />
+        ) : null}
 
         {loading ? (
           <div className="glass-panel flex items-center justify-center gap-3 rounded-2xl py-20 text-[#666666] dark:text-zinc-300">

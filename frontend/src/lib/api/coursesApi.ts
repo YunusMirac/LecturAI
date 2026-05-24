@@ -16,6 +16,57 @@ export type FetchCoursesFailure = {
 
 export type FetchCoursesResult = FetchCoursesSuccess | FetchCoursesFailure;
 
+export type CreateCoursePayload = {
+  name: string;
+  semester?: string;
+};
+
+export type CreateCourseResult =
+  | { ok: true; course: Course }
+  | { ok: false; reason: "unauthorized" | "forbidden" | "http" | "network"; message?: string };
+
+export async function createCourse(
+  accessToken: string,
+  payload: CreateCoursePayload,
+): Promise<CreateCourseResult> {
+  try {
+    const res = await fetch(`${API_URL}/api/courses/`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: payload.name.trim(),
+        semester: payload.semester?.trim() || null,
+      }),
+    });
+    if (res.status === 401) return { ok: false, reason: "unauthorized" };
+    if (res.status === 403) return { ok: false, reason: "forbidden" };
+    if (!res.ok) {
+      const data: unknown = await res.json().catch(() => ({}));
+      const msg = parseCourseWriteError(data);
+      return { ok: false, reason: "http", message: msg };
+    }
+    const data: unknown = await res.json().catch(() => null);
+    const course = parseCourse(data);
+    if (!course) return { ok: false, reason: "http", message: "Unerwartete Antwort." };
+    return { ok: true, course };
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+}
+
+function parseCourseWriteError(data: unknown): string {
+  if (typeof data !== "object" || data === null) return "Kurs konnte nicht angelegt werden.";
+  const o = data as Record<string, unknown>;
+  const name = o.name;
+  if (Array.isArray(name) && typeof name[0] === "string") return name[0];
+  const detail = o.detail;
+  if (typeof detail === "string") return detail;
+  return "Kurs konnte nicht angelegt werden.";
+}
+
 export async function fetchCourses(accessToken: string): Promise<FetchCoursesResult> {
   try {
     const res = await fetch(`${API_URL}/api/courses/`, {

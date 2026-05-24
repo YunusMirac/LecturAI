@@ -1,4 +1,4 @@
-from rest_framework import status
+from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -6,10 +6,11 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from users.models import Invitation
+from users.models import Invitation, Profiles
 from api.permissions import IsAdmin, IsTeacher, profile_for_user
 
 from .serializers import (
+    AdminProfileSerializer,
     EmailTokenObtainPairSerializer,
     InvitationCreateSerializer,
     InvitationCreatedSerializer,
@@ -45,6 +46,21 @@ class RegisterView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class AdminUserListView(generics.ListAPIView):
+    """
+    GET /api/admin/users/
+    Alle `profiles` (Admin, Lehrkräfte, Schüler:innen) — nur JWT mit Admin-Rolle.
+    """
+
+    permission_classes = [IsAuthenticated, IsAdmin]
+    serializer_class = AdminProfileSerializer
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "admin_users"
+
+    def get_queryset(self):
+        return Profiles.objects.all().order_by("-created_at")
 
 
 class InvitationCreateView(APIView):

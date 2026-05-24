@@ -39,7 +39,9 @@ LecturAI/
 - `POST /api/auth/token/refresh/` — Refresh  
 - `POST /api/auth/register/` — Registrierung nur mit `invite_token` + E-Mail + Passwort  
 - `POST /api/invitations/` — Einladung (Admin → Lehrer, Lehrer → Schüler mit `course_id`)  
-- `GET /api/courses/` — Kurse (JWT)
+- `GET /api/courses/` — Kurse (JWT)  
+- `POST /api/courses/` — Kurs anlegen (nur Lehrkraft)  
+- `GET /api/admin/users/` — alle `profiles` (nur Admin)
 
 **Nicht mehr vorhanden:** E-Mail-Verifizierungslink (`/api/auth/verify-email/...`) — Registrierung läuft ausschließlich über **Einladungstoken**; Nutzer werden aktiv angelegt.
 
@@ -50,8 +52,9 @@ LecturAI/
 | Pfad | Rolle |
 |------|--------|
 | `src/app/(auth)/` | Login, Register (Route-Gruppe, URLs `/login`, `/register`) |
-| `src/app/dashboard/` | eingeloggte Übersicht |
-| `src/lib/api/` | `authApi`, `coursesApi`, `invitationsApi`, `config`, `guards` |
+| `src/app/dashboard/` | Kurse + rollenbasierte Panels (Admin: Lehrer einladen, Nutzerliste; Lehrkraft: Kurs anlegen, Schüler:in einladen) |
+| `src/components/dashboard/` | `AdminPanel`, `TeacherPanel` |
+| `src/lib/api/` | `authApi`, `adminUsersApi`, `coursesApi`, `invitationsApi`, `config`, `guards` |
 | `src/lib/auth.ts` | Tokens + Nutzeranzeige in `sessionStorage`, Logout-Event |
 
 ---

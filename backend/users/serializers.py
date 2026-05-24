@@ -154,6 +154,27 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         }
 
 
+class AdminProfileSerializer(serializers.ModelSerializer):
+    """Registrierte Plattformnutzer (`profiles`) — nur für Admin-Liste."""
+
+    has_login_account = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Profiles
+        fields = (
+            "id",
+            "email",
+            "role",
+            "created_at",
+            "updated_at",
+            "has_login_account",
+        )
+        read_only_fields = fields
+
+    def get_has_login_account(self, obj: Profiles) -> bool:
+        return User.objects.filter(email__iexact=obj.email.strip()).exists()
+
+
 class InvitationCreateSerializer(serializers.Serializer):
     """Payload zum Erzeugen einer Einladung (Admin → Lehrer, Lehrer → Schüler)."""
 

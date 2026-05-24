@@ -22,7 +22,7 @@ Ziel: **klare Grenzen**, wenig Magie, Supabase/PostgreSQL als Schema-Quelle, sch
 
 - **`app/`** — Routen; Route-Gruppe **`(auth)`** für Login und Registrierung (`/login`, `/register`).
 - **`components/`** — UI-Bausteine (`landing/`, `theme/`).
-- **`lib/api/`** — Backend-Anbindung: `config`, `guards` (gemeinsame Typ-Helfer), modulare Clients (`authApi`, `coursesApi`, `invitationsApi`), Barrel `index.ts`.
+- **`lib/api/`** — Backend-Anbindung: `config`, `guards`, modulare Clients (`authApi`, `adminUsersApi`, `coursesApi`, `invitationsApi`), Barrel `index.ts`.
 - **`lib/auth.ts`** — Session-Storage-Keys und Logout-Hilfen (Client-only).
 
 ## Konventionen

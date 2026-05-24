@@ -6,7 +6,19 @@ export {
   type AuthTokenResult,
   type RegisterResult,
 } from "./authApi";
-export { fetchCourses, type Course, type FetchCoursesResult } from "./coursesApi";
+export {
+  fetchAdminUsers,
+  type AdminProfile,
+  type FetchAdminUsersResult,
+} from "./adminUsersApi";
+export {
+  createCourse,
+  fetchCourses,
+  type Course,
+  type CreateCoursePayload,
+  type CreateCourseResult,
+  type FetchCoursesResult,
+} from "./coursesApi";
 export {
   postInvitation,
   type CreateInvitationPayload,
