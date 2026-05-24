@@ -28,12 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="de"
-      suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="flex min-h-full min-w-0 flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-primary/25 selection:text-foreground">
+    <html lang="de" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} flex h-full min-h-full min-w-0 flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-primary/25 selection:text-foreground`}
+      >
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <ThemeProvider>{children}</ThemeProvider>
       </body>

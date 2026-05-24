@@ -11,6 +11,9 @@ import {
 
 export const THEME_STORAGE_KEY = "lectur-theme";
 
+/** Wird nach DOM + localStorage-Update gefeuert (gleicher Tab; `storage` nur für andere Tabs). */
+export const THEME_CHANGED_EVENT = "lectur-theme-changed";
+
 export type Theme = "dark" | "light";
 
 type ThemeContextValue = {
@@ -29,26 +32,29 @@ export function applyThemeToDocument(theme: Theme) {
   } catch {
     /* ignore quota / private mode */
   }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(THEME_CHANGED_EVENT));
+  }
 }
 
 function subscribe(onStoreChange: () => void) {
   if (typeof window === "undefined") return () => {};
 
-  const el = document.documentElement;
-  const mo = new MutationObserver(onStoreChange);
-  mo.observe(el, { attributes: true, attributeFilter: ["class"] });
+  const onThemeChanged = () => onStoreChange();
+  window.addEventListener(THEME_CHANGED_EVENT, onThemeChanged);
 
   const onStorage = (e: StorageEvent) => {
     if (e.key !== THEME_STORAGE_KEY) return;
     if (e.newValue === "light" || e.newValue === "dark") {
       applyThemeToDocument(e.newValue);
+    } else {
+      onStoreChange();
     }
-    onStoreChange();
   };
   window.addEventListener("storage", onStorage);
 
   return () => {
-    mo.disconnect();
+    window.removeEventListener(THEME_CHANGED_EVENT, onThemeChanged);
     window.removeEventListener("storage", onStorage);
   };
 }
