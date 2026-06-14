@@ -1,4 +1,4 @@
-import { API_URL } from "./config";
+import { getAccessToken } from "@/lib/api/authApi";
 import { isRecord } from "./guards";
 
 export type InvitationRole = "teacher" | "student";
@@ -6,24 +6,27 @@ export type InvitationRole = "teacher" | "student";
 export type CreateInvitationPayload = {
   email: string;
   role: InvitationRole;
-  /** Pflicht bei role === "student" */
   course_id?: string | null;
 };
 
 export type CreateInvitationResult =
-  | { ok: true; data: Record<string, unknown> }
+  | { ok: true; data: Record<string, unknown>; emailSent: boolean; registerUrl: string | null }
   | { ok: false; errorMessage: string };
 
 export async function postInvitation(
-  accessToken: string,
   payload: CreateInvitationPayload,
 ): Promise<CreateInvitationResult> {
+  const token = await getAccessToken();
+  if (!token) {
+    return { ok: false, errorMessage: "Nicht angemeldet." };
+  }
+
   try {
-    const res = await fetch(`${API_URL}/api/invitations/`, {
+    const res = await fetch("/api/invitations", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({
         email: payload.email.trim().toLowerCase(),
@@ -38,9 +41,11 @@ export async function postInvitation(
     if (!isRecord(data)) {
       return { ok: false, errorMessage: "Unerwartete Antwort vom Server." };
     }
-    return { ok: true, data };
+    const emailSent = data.email_sent === true;
+    const registerUrl = typeof data.register_url === "string" ? data.register_url : null;
+    return { ok: true, data, emailSent, registerUrl };
   } catch {
-    return { ok: false, errorMessage: "Netzwerkfehler — läuft das Backend?" };
+    return { ok: false, errorMessage: "Netzwerkfehler." };
   }
 }
 

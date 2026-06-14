@@ -57,7 +57,7 @@ function RegisterForm() {
       setPassword("");
       setPasswordConfirm("");
     } catch {
-      setError("Netzwerkfehler — läuft das Backend?");
+      setError("Netzwerkfehler.");
     } finally {
       setLoading(false);
     }

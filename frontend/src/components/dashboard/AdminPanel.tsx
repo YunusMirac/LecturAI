@@ -8,11 +8,7 @@ import { roleLabelDe } from "@/lib/auth";
 const inputClass =
   "w-full rounded-xl border border-white/50 bg-white/50 px-4 py-3 text-sm text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] dark:border-white/15 dark:bg-zinc-900/60 dark:text-zinc-100 dark:placeholder:text-zinc-500";
 
-type AdminPanelProps = {
-  accessToken: string;
-};
-
-export function AdminPanel({ accessToken }: AdminPanelProps) {
+export function AdminPanel() {
   const [users, setUsers] = useState<AdminProfile[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
   const [usersError, setUsersError] = useState<string | null>(null);
@@ -20,13 +16,13 @@ export function AdminPanel({ accessToken }: AdminPanelProps) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [inviteErr, setInviteErr] = useState<string | null>(null);
-  const [inviteTokenHint, setInviteTokenHint] = useState<string | null>(null);
+  const [inviteLinkHint, setInviteLinkHint] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
 
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     setUsersError(null);
-    const r = await fetchAdminUsers(accessToken);
+    const r = await fetchAdminUsers();
     if (r.ok) {
       setUsers(r.users);
     } else if (r.reason === "forbidden") {
@@ -37,7 +33,7 @@ export function AdminPanel({ accessToken }: AdminPanelProps) {
       setUsers([]);
     }
     setUsersLoading(false);
-  }, [accessToken]);
+  }, []);
 
   useEffect(() => {
     queueMicrotask(() => {
@@ -49,9 +45,9 @@ export function AdminPanel({ accessToken }: AdminPanelProps) {
     e.preventDefault();
     setInviteErr(null);
     setInviteMsg(null);
-    setInviteTokenHint(null);
+    setInviteLinkHint(null);
     setInviting(true);
-    const r = await postInvitation(accessToken, {
+    const r = await postInvitation({
       email: inviteEmail.trim().toLowerCase(),
       role: "teacher",
     });
@@ -60,10 +56,14 @@ export function AdminPanel({ accessToken }: AdminPanelProps) {
       setInviteErr(r.errorMessage);
       return;
     }
-    const tok =
-      typeof r.data.invite_token === "string" ? (r.data.invite_token as string) : null;
-    setInviteMsg("Einladung erstellt. Registrierungs-Link (Parameter an eure Register-URL anhängen):");
-    setInviteTokenHint(tok);
+    if (r.emailSent) {
+      setInviteMsg(`Einladung per E-Mail an ${inviteEmail.trim().toLowerCase()} gesendet.`);
+    } else {
+      setInviteMsg(
+        "Einladung erstellt. E-Mail-Versand ist nicht konfiguriert — Link zum Weiterleiten:",
+      );
+      setInviteLinkHint(r.registerUrl);
+    }
     setInviteEmail("");
     void loadUsers();
   }
@@ -105,9 +105,9 @@ export function AdminPanel({ accessToken }: AdminPanelProps) {
         {inviteMsg ? (
           <div className="mt-4 rounded-xl border border-[#2a9d8f]/30 bg-[#2a9d8f]/10 px-4 py-3 text-sm text-[#1a5c54] dark:border-teal-500/30 dark:bg-teal-950/40 dark:text-teal-200">
             <p>{inviteMsg}</p>
-            {inviteTokenHint ? (
+            {inviteLinkHint ? (
               <code className="mt-2 block break-all rounded-lg bg-black/5 px-2 py-2 text-xs dark:bg-white/10">
-                ?invite_token={encodeURIComponent(inviteTokenHint)}
+                {inviteLinkHint}
               </code>
             ) : null}
           </div>

@@ -9,62 +9,63 @@ import { useCallback, useEffect, useState } from "react";
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
 import { AdminPanel } from "@/components/dashboard/AdminPanel";
 import { TeacherPanel } from "@/components/dashboard/TeacherPanel";
-import { fetchCourses, type Course } from "@/lib/api";
-import { AUTH_CHANGED_EVENT, clearAuth, getAccessToken, getStoredUserSession, roleLabelDe } from "@/lib/auth";
+import { fetchCourses, getSession, signOut, type Course } from "@/lib/api";
+import { roleLabelDe, type UserSession } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/client";
 
 const ease = [0.22, 1, 0.36, 1] as const;
-
-/** `undefined` = vor Browser-Mount (kein sessionStorage), verhindert Hydration-Mismatch beim Reload. */
-type UserSessionState =
-  | undefined
-  | null
-  | { email: string | null; role: string | null };
 
 export default function DashboardPage() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [userSession, setUserSession] = useState<UserSessionState>(undefined);
-  const [clientToken, setClientToken] = useState<string | null>(null);
+  const [userSession, setUserSession] = useState<UserSession | null | undefined>(undefined);
 
   useEffect(() => {
-    const sync = () => {
-      setUserSession(getStoredUserSession());
-      setClientToken(getAccessToken());
-    };
-    sync();
-    window.addEventListener(AUTH_CHANGED_EVENT, sync);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, sync);
-  }, []);
+    void getSession().then(setUserSession);
+    const supabase = createClient();
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        setUserSession(null);
+        router.replace("/login");
+        return;
+      }
+      void getSession().then(setUserSession);
+    });
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   const loadCourses = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) {
+    const session = await getSession();
+    if (!session) {
       router.replace("/login");
       return;
     }
+    setUserSession(session);
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchCourses(token);
+      const result = await fetchCourses();
       if (!result.ok) {
         if (result.reason === "unauthorized") {
-          clearAuth();
+          await signOut();
           router.replace("/login");
           return;
         }
         if (result.reason === "network") {
-          setError("Netzwerkfehler — läuft das Backend?");
+          setError("Netzwerkfehler — ist Supabase erreichbar?");
         } else {
-          setError("Kurse konnten nicht geladen werden.");
+          setError(result.message ?? "Kurse konnten nicht geladen werden.");
         }
         setCourses([]);
         return;
       }
       setCourses(result.courses);
     } catch {
-      setError("Netzwerkfehler — läuft das Backend?");
+      setError("Netzwerkfehler — ist Supabase erreichbar?");
       setCourses([]);
     } finally {
       setLoading(false);
@@ -77,8 +78,8 @@ export default function DashboardPage() {
     });
   }, [loadCourses]);
 
-  function logout() {
-    clearAuth();
+  async function logout() {
+    await signOut();
     router.push("/");
     router.refresh();
   }
@@ -122,7 +123,7 @@ export default function DashboardPage() {
             </button>
             <button
               type="button"
-              onClick={logout}
+              onClick={() => void logout()}
               className="glass-panel inline-flex items-center justify-center gap-2 rounded-xl border border-white/60 px-4 py-2.5 text-sm font-semibold text-[#666666] transition hover:border-red-300/60 hover:text-red-700 dark:border-white/10 dark:text-zinc-300 dark:hover:border-red-500/40 dark:hover:text-red-300"
             >
               <LogOut className="h-4 w-4" aria-hidden />
@@ -131,15 +132,9 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {clientToken && userSession !== undefined && userSession?.role === "admin" ? (
-          <AdminPanel accessToken={clientToken} />
-        ) : null}
-        {clientToken && userSession !== undefined && userSession?.role === "teacher" ? (
-          <TeacherPanel
-            accessToken={clientToken}
-            courses={courses}
-            onCoursesChanged={() => void loadCourses()}
-          />
+        {userSession !== undefined && userSession?.role === "admin" ? <AdminPanel /> : null}
+        {userSession !== undefined && userSession?.role === "teacher" ? (
+          <TeacherPanel courses={courses} onCoursesChanged={() => void loadCourses()} />
         ) : null}
 
         {loading ? (

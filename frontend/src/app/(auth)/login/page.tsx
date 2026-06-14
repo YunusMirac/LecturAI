@@ -6,14 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
-import {
-  AUTH_ACCESS_KEY,
-  AUTH_REFRESH_KEY,
-  AUTH_USER_EMAIL_KEY,
-  AUTH_USER_ROLE_KEY,
-  postAuthToken,
-} from "@/lib/api";
-import { AUTH_CHANGED_EVENT } from "@/lib/auth";
+import { signInWithPassword } from "@/lib/api";
 
 const inputClass =
   "min-h-[3.5rem] w-full rounded-2xl border-2 border-[#e0e0e0] bg-white/50 px-5 py-4 text-lg text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] focus:ring-4 focus:ring-[#2a9d8f]/20 sm:text-xl dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-100";
@@ -32,22 +25,15 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const result = await postAuthToken(email, password);
+      const result = await signInWithPassword(email, password);
       if (!result.ok) {
         setError(result.errorMessage);
         return;
       }
-      sessionStorage.setItem(AUTH_ACCESS_KEY, result.access);
-      sessionStorage.setItem(AUTH_REFRESH_KEY, result.refresh);
-      if (result.email) sessionStorage.setItem(AUTH_USER_EMAIL_KEY, result.email);
-      else sessionStorage.removeItem(AUTH_USER_EMAIL_KEY);
-      if (result.role != null) sessionStorage.setItem(AUTH_USER_ROLE_KEY, result.role);
-      else sessionStorage.removeItem(AUTH_USER_ROLE_KEY);
-      window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
       router.push("/dashboard");
       router.refresh();
     } catch {
-      setError("Netzwerkfehler — läuft das Backend?");
+      setError("Netzwerkfehler — ist Supabase erreichbar?");
     } finally {
       setLoading(false);
     }

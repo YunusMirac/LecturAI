@@ -10,12 +10,11 @@ const inputClass =
 const selectClass = inputClass;
 
 type TeacherPanelProps = {
-  accessToken: string;
   courses: Course[];
   onCoursesChanged: () => void;
 };
 
-export function TeacherPanel({ accessToken, courses, onCoursesChanged }: TeacherPanelProps) {
+export function TeacherPanel({ courses, onCoursesChanged }: TeacherPanelProps) {
   const [courseName, setCourseName] = useState("");
   const [courseSemester, setCourseSemester] = useState("");
   const [courseMsg, setCourseMsg] = useState<string | null>(null);
@@ -26,7 +25,7 @@ export function TeacherPanel({ accessToken, courses, onCoursesChanged }: Teacher
   const [studentCourseId, setStudentCourseId] = useState("");
   const [studentMsg, setStudentMsg] = useState<string | null>(null);
   const [studentErr, setStudentErr] = useState<string | null>(null);
-  const [studentTokenHint, setStudentTokenHint] = useState<string | null>(null);
+  const [studentLinkHint, setStudentLinkHint] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
 
   async function onCreateCourse(e: React.FormEvent) {
@@ -34,7 +33,7 @@ export function TeacherPanel({ accessToken, courses, onCoursesChanged }: Teacher
     setCourseErr(null);
     setCourseMsg(null);
     setCreating(true);
-    const r = await createCourse(accessToken, {
+    const r = await createCourse({
       name: courseName,
       semester: courseSemester.trim() || undefined,
     });
@@ -53,13 +52,13 @@ export function TeacherPanel({ accessToken, courses, onCoursesChanged }: Teacher
     e.preventDefault();
     setStudentErr(null);
     setStudentMsg(null);
-    setStudentTokenHint(null);
+    setStudentLinkHint(null);
     if (!studentCourseId) {
       setStudentErr("Bitte einen Kurs wählen.");
       return;
     }
     setInviting(true);
-    const r = await postInvitation(accessToken, {
+    const r = await postInvitation({
       email: studentEmail.trim().toLowerCase(),
       role: "student",
       course_id: studentCourseId,
@@ -69,10 +68,12 @@ export function TeacherPanel({ accessToken, courses, onCoursesChanged }: Teacher
       setStudentErr(r.errorMessage);
       return;
     }
-    const tok =
-      typeof r.data.invite_token === "string" ? (r.data.invite_token as string) : null;
-    setStudentMsg("Einladung erstellt. Registrierungs-Link:");
-    setStudentTokenHint(tok);
+    if (r.emailSent) {
+      setStudentMsg(`Einladung per E-Mail an ${studentEmail.trim().toLowerCase()} gesendet.`);
+    } else {
+      setStudentMsg("Einladung erstellt. E-Mail nicht konfiguriert — Link:");
+      setStudentLinkHint(r.registerUrl);
+    }
     setStudentEmail("");
     onCoursesChanged();
   }
@@ -172,7 +173,7 @@ export function TeacherPanel({ accessToken, courses, onCoursesChanged }: Teacher
               disabled={inviting}
               className="rounded-xl bg-[#2a9d8f] px-6 py-3 text-sm font-bold text-white transition hover:brightness-110 disabled:opacity-50"
             >
-              {inviting ? "…" : "Einladung erstellen"}
+              {inviting ? "…" : "Einladung senden"}
             </button>
           </form>
         )}
@@ -180,9 +181,9 @@ export function TeacherPanel({ accessToken, courses, onCoursesChanged }: Teacher
         {studentMsg ? (
           <div className="mt-4 rounded-xl border border-[#2a9d8f]/30 bg-[#2a9d8f]/10 px-4 py-3 text-sm text-[#1a5c54] dark:border-teal-500/30 dark:bg-teal-950/40 dark:text-teal-200">
             <p>{studentMsg}</p>
-            {studentTokenHint ? (
+            {studentLinkHint ? (
               <code className="mt-2 block break-all rounded-lg bg-black/5 px-2 py-2 text-xs dark:bg-white/10">
-                ?invite_token={encodeURIComponent(studentTokenHint)}
+                {studentLinkHint}
               </code>
             ) : null}
           </div>

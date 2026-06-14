@@ -1,13 +1,11 @@
-import { API_URL } from "./config";
-import { isRecord } from "./guards";
+import { createClient } from "@/lib/supabase/client";
+import type { ProfileRole, UserSession } from "@/lib/auth";
+import { notifyAuthChanged } from "@/lib/auth";
 
 export type AuthTokenSuccess = {
   ok: true;
-  access: string;
-  refresh: string;
   email: string;
-  /** `admin` | `teacher` | `student` oder null ohne Profilzeile */
-  role: string | null;
+  role: ProfileRole | null;
 };
 
 export type AuthTokenFailure = {
@@ -17,58 +15,113 @@ export type AuthTokenFailure = {
 
 export type AuthTokenResult = AuthTokenSuccess | AuthTokenFailure;
 
-export async function postAuthToken(email: string, password: string): Promise<AuthTokenResult> {
+export async function getAccessToken(): Promise<string | null> {
+  const supabase = createClient();
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
+async function authHeaders(): Promise<HeadersInit | null> {
+  const token = await getAccessToken();
+  if (!token) return null;
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function signInWithPassword(
+  email: string,
+  password: string,
+): Promise<AuthTokenResult> {
   try {
-    const res = await fetch(`${API_URL}/api/auth/token/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
     });
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const errorMessage = parseAuthTokenError(data);
-      return { ok: false, errorMessage };
+
+    if (error) {
+      return {
+        ok: false,
+        errorMessage: error.message.includes("Invalid")
+          ? "Kein Konto mit dieser E-Mail oder falsches Passwort."
+          : error.message,
+      };
     }
-    if (!isRecord(data)) {
-      return { ok: false, errorMessage: "Unerwartete Antwort vom Server." };
+
+    if (!data.user) {
+      return { ok: false, errorMessage: "Anmeldung fehlgeschlagen." };
     }
-    const access = data.access;
-    const refresh = data.refresh;
-    if (typeof access === "string" && typeof refresh === "string") {
-      const email = typeof data.email === "string" ? data.email : "";
-      const role: string | null =
-        data.role == null
-          ? null
-          : typeof data.role === "string"
-            ? data.role
-            : null;
-      return { ok: true, access, refresh, email, role };
+
+    notifyAuthChanged();
+
+    const token = data.session?.access_token;
+    if (token) {
+      const meRes = await fetch("/api/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (meRes.ok) {
+        const profile = (await meRes.json()) as { email: string; role: ProfileRole };
+        return {
+          ok: true,
+          email: profile.email,
+          role: profile.role,
+        };
+      }
+      const err = (await meRes.json().catch(() => ({}))) as { detail?: string };
+      return {
+        ok: false,
+        errorMessage:
+          typeof err.detail === "string"
+            ? err.detail
+            : "Login ok, aber kein Profil in der Datenbank.",
+      };
     }
-    return { ok: false, errorMessage: "Unerwartete Antwort vom Server." };
+
+    return {
+      ok: true,
+      email: data.user.email ?? email,
+      role: null,
+    };
   } catch {
-    return { ok: false, errorMessage: "Netzwerkfehler — läuft das Backend?" };
+    return { ok: false, errorMessage: "Netzwerkfehler — ist Supabase erreichbar?" };
   }
 }
 
-function parseAuthTokenError(data: unknown): string {
-  if (!isRecord(data)) return "Anmeldung fehlgeschlagen.";
-  const detail = data.detail;
-  if (typeof detail === "string") return detail;
-  const nfe = data.non_field_errors;
-  if (Array.isArray(nfe) && typeof nfe[0] === "string") return nfe[0];
-  return "Anmeldung fehlgeschlagen.";
+export async function signOut(): Promise<void> {
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  notifyAuthChanged();
 }
 
-export type RegisterSuccess = {
-  ok: true;
-  detail: string;
-};
+export async function getSession(): Promise<UserSession | null> {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
 
-export type RegisterFailure = {
-  ok: false;
-  errorMessage: string;
-};
+  const headers = await authHeaders();
+  if (!headers) {
+    return { userId: user.id, email: user.email ?? null, role: null };
+  }
 
+  try {
+    const res = await fetch("/api/me", { headers, cache: "no-store" });
+    if (!res.ok) {
+      return { userId: user.id, email: user.email ?? null, role: null };
+    }
+    const profile = (await res.json()) as { email: string; role: ProfileRole };
+    return {
+      userId: user.id,
+      email: profile.email ?? user.email ?? null,
+      role: profile.role ?? null,
+    };
+  } catch {
+    return { userId: user.id, email: user.email ?? null, role: null };
+  }
+}
+
+export type RegisterSuccess = { ok: true; detail: string; emailSent?: boolean };
+export type RegisterFailure = { ok: false; errorMessage: string };
 export type RegisterResult = RegisterSuccess | RegisterFailure;
 
 export async function postRegister(payload: {
@@ -78,7 +131,7 @@ export async function postRegister(payload: {
   passwordConfirm: string;
 }): Promise<RegisterResult> {
   try {
-    const res = await fetch(`${API_URL}/api/auth/register/`, {
+    const res = await fetch("/api/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -92,29 +145,26 @@ export async function postRegister(payload: {
     if (!res.ok) {
       return { ok: false, errorMessage: parseRegisterError(data) };
     }
-    if (!isRecord(data)) {
-      return {
-        ok: true,
-        detail: "Registrierung erfolgreich.",
-      };
+    if (typeof data === "object" && data !== null && "detail" in data) {
+      const detail = (data as { detail: unknown }).detail;
+      if (typeof detail === "string") return { ok: true, detail };
     }
-    const detail =
-      typeof data.detail === "string" ? data.detail : "Registrierung erfolgreich.";
-    return { ok: true, detail };
+    return { ok: true, detail: "Registrierung erfolgreich." };
   } catch {
-    return { ok: false, errorMessage: "Netzwerkfehler — läuft das Backend?" };
+    return { ok: false, errorMessage: "Netzwerkfehler." };
   }
 }
 
 function parseRegisterError(data: unknown): string {
-  if (!isRecord(data)) return "Registrierung fehlgeschlagen.";
-  const invite = data.invite_token;
+  if (typeof data !== "object" || data === null) return "Registrierung fehlgeschlagen.";
+  const o = data as Record<string, unknown>;
+  const invite = o.invite_token;
   if (Array.isArray(invite) && typeof invite[0] === "string") return invite[0];
-  const email0 = data.email;
+  const email0 = o.email;
   if (Array.isArray(email0) && typeof email0[0] === "string") return email0[0];
-  const pc = data.password_confirm;
+  const pc = o.password_confirm;
   if (Array.isArray(pc) && typeof pc[0] === "string") return pc[0];
-  const detail = data.detail;
+  const detail = o.detail;
   if (typeof detail === "string") return detail;
   return "Registrierung fehlgeschlagen.";
 }

@@ -1,7 +1,8 @@
-export { API_URL, AUTH_ACCESS_KEY, AUTH_REFRESH_KEY, AUTH_USER_EMAIL_KEY, AUTH_USER_ROLE_KEY } from "./config";
-export { isRecord } from "./guards";
 export {
-  postAuthToken,
+  signInWithPassword,
+  signOut,
+  getSession,
+  getAccessToken,
   postRegister,
   type AuthTokenResult,
   type RegisterResult,
@@ -25,3 +26,4 @@ export {
   type CreateInvitationResult,
   type InvitationRole,
 } from "./invitationsApi";
+export { isRecord } from "./guards";
