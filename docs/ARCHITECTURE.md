@@ -18,6 +18,11 @@
 | `invitations` | Whitelist-Registrierung mit Token |
 | `courses` | Kurse (Lehrkraft = `teacher_id`) |
 | `course_members` | Schüler-Zuordnung zu Kursen |
+| `quizzes` | KI-/Lehrer-Quizze pro Kurs (`generating` / `draft` / `published` / `failed`) |
+| `quiz_questions` | Fragen eines Quiz |
+| `quiz_choices` | Antwortoptionen (genau eine `is_correct` pro Frage) |
+
+**Storage:** Bucket `course-materials` (private) — Quell-PDFs unter `{courseId}/{quizId}/source.pdf`.
 
 ## API-Schichten
 
@@ -38,6 +43,14 @@
 | `/api/register` | POST | Registrierung mit Einladungstoken |
 | `/api/invitations` | POST | Einladung erstellen (+ optional E-Mail) |
 | `/api/admin/users` | GET | Nutzerliste (nur Admin) |
+| `/api/courses/[courseId]` | GET, PATCH, DELETE | Kursdetail / bearbeiten / löschen |
+| `/api/courses/[courseId]/quizzes` | GET, POST | Quiz-Liste / PDF-Upload + KI-Start |
+| `/api/quizzes/[quizId]` | GET | Quiz inkl. Fragen (Poll bei `generating`) |
+| `/api/quizzes/[quizId]/publish` | POST | Validierung → `published` |
+| `/api/quizzes/[quizId]/questions` | POST | Manuelle Frage |
+| `/api/quizzes/[quizId]/questions/[qId]` | PATCH, DELETE | Frage bearbeiten/löschen |
+| `/api/quizzes/[quizId]/questions/[qId]/choices` | POST | Antwort hinzufügen |
+| `/api/quizzes/[quizId]/questions/[qId]/choices/[cId]` | PATCH, DELETE | Antwort bearbeiten/löschen |
 
 ## Frontend (`src/`)
 

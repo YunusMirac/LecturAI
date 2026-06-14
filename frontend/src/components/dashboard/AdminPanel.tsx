@@ -5,8 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchAdminUsers, postInvitation, type AdminProfile } from "@/lib/api";
 import { roleLabelDe } from "@/lib/auth";
 
-const inputClass =
-  "w-full rounded-xl border border-white/50 bg-white/50 px-4 py-3 text-sm text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] dark:border-white/15 dark:bg-zinc-900/60 dark:text-zinc-100 dark:placeholder:text-zinc-500";
+import { inputClass } from "@/lib/ui/form-classes";
 
 export function AdminPanel() {
   const [users, setUsers] = useState<AdminProfile[]>([]);

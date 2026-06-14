@@ -10,7 +10,13 @@ export type CreateInvitationPayload = {
 };
 
 export type CreateInvitationResult =
-  | { ok: true; data: Record<string, unknown>; emailSent: boolean; registerUrl: string | null }
+  | {
+      ok: true;
+      data: Record<string, unknown>;
+      emailSent: boolean;
+      registerUrl: string | null;
+      addedDirectly: boolean;
+    }
   | { ok: false; errorMessage: string };
 
 export async function postInvitation(
@@ -43,7 +49,8 @@ export async function postInvitation(
     }
     const emailSent = data.email_sent === true;
     const registerUrl = typeof data.register_url === "string" ? data.register_url : null;
-    return { ok: true, data, emailSent, registerUrl };
+    const addedDirectly = data.added_directly === true;
+    return { ok: true, data, emailSent, registerUrl, addedDirectly };
   } catch {
     return { ok: false, errorMessage: "Netzwerkfehler." };
   }

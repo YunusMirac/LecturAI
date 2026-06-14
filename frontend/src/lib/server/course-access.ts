@@ -5,6 +5,7 @@ export type CourseRow = {
   teacher_id: string;
   name: string;
   semester: string | null;
+  created_at?: string;
 };
 
 const UUID_RE =

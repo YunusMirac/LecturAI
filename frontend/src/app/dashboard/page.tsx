@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
 import { AdminPanel } from "@/components/dashboard/AdminPanel";
+import { CoursesTable } from "@/components/dashboard/CoursesTable";
 import { TeacherPanel } from "@/components/dashboard/TeacherPanel";
 import { fetchCourses, getSession, type Course } from "@/lib/api";
 import { performLogout } from "@/lib/auth-logout";
@@ -164,7 +165,17 @@ export default function DashboardPage() {
 
         {userSession !== undefined && userSession?.role === "admin" ? <AdminPanel /> : null}
         {userSession !== undefined && userSession?.role === "teacher" ? (
-          <TeacherPanel courses={courses} onCoursesChanged={() => void loadCourses()} />
+          <TeacherPanel onCoursesChanged={() => void loadCourses()} />
+        ) : null}
+
+        {userSession !== undefined && userSession?.role === "student" ? (
+          <div className="glass-panel mb-8 rounded-2xl p-6 sm:p-8">
+            <h2 className="mb-2 text-lg font-bold text-[#333333] dark:text-zinc-100">Live-Quiz</h2>
+            <p className="text-sm text-[#666666] dark:text-zinc-400">
+              Wähle unten einen Kurs, sieh dir die veröffentlichten Quizze an und tritt mit dem
+              Zugangscode deiner Lehrkraft bei.
+            </p>
+          </div>
         ) : null}
 
         {loading ? (
@@ -194,6 +205,8 @@ export default function DashboardPage() {
               Zur Startseite
             </Link>
           </div>
+        ) : userSession?.role === "teacher" || userSession?.role === "admin" ? (
+          <CoursesTable courses={courses} />
         ) : (
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {courses.map((course, index) => (
@@ -203,22 +216,27 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.35, ease }}
               >
-                <div className="glass-panel h-full rounded-2xl p-6 transition hover:border-[#2a9d8f]/40 hover:shadow-[0_10px_36px_rgb(42_157_143_/_0.12)]">
-                  <div className="mb-3 flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2a9d8f]/12 dark:bg-[#2a9d8f]/25">
-                      <BookOpen className="h-5 w-5 text-[#2a9d8f]" aria-hidden />
+                <Link
+                  href={`/dashboard/courses/${course.id}`}
+                  className="block h-full transition hover:opacity-95"
+                >
+                  <div className="glass-panel h-full rounded-2xl p-6 transition hover:border-[#2a9d8f]/40 hover:shadow-[0_10px_36px_rgb(42_157_143_/_0.12)]">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2a9d8f]/12 dark:bg-[#2a9d8f]/25">
+                        <BookOpen className="h-5 w-5 text-[#2a9d8f]" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="font-semibold leading-snug text-[#333333] dark:text-zinc-100">
+                          {course.name}
+                        </h2>
+                        {course.semester ? (
+                          <p className="mt-1 text-sm text-[#777777] dark:text-zinc-400">{course.semester}</p>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h2 className="font-semibold leading-snug text-[#333333] dark:text-zinc-100">
-                        {course.name}
-                      </h2>
-                      {course.semester ? (
-                        <p className="mt-1 text-sm text-[#777777] dark:text-zinc-400">{course.semester}</p>
-                      ) : null}
-                    </div>
+                    <p className="text-xs font-semibold text-[#2a9d8f]">Kurs öffnen →</p>
                   </div>
-                  <p className="text-xs text-[#999999] dark:text-zinc-500">ID: {course.id.slice(0, 8)}…</p>
-                </div>
+                </Link>
               </motion.li>
             ))}
           </ul>

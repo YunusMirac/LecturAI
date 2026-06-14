@@ -1,4 +1,4 @@
-import { getAccessToken } from "@/lib/api/authApi";
+import { authHeaders, parseApiDetail } from "@/lib/api/fetch-auth";
 
 export type Course = {
   id: string;
@@ -60,27 +60,6 @@ function parseCourse(row: unknown): Course | null {
   };
 }
 
-function parseDetail(data: unknown, fallback: string): string {
-  if (
-    typeof data === "object" &&
-    data !== null &&
-    "detail" in data &&
-    typeof (data as { detail: unknown }).detail === "string"
-  ) {
-    return (data as { detail: string }).detail;
-  }
-  return fallback;
-}
-
-async function authHeaders(): Promise<HeadersInit | null> {
-  const token = await getAccessToken();
-  if (!token) return null;
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-}
-
 export async function fetchCourses(): Promise<FetchCoursesResult> {
   try {
     const headers = await authHeaders();
@@ -125,7 +104,7 @@ export async function createCourse(payload: CreateCoursePayload): Promise<Create
 
     const data: unknown = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { ok: false, reason: "http", message: parseDetail(data, "Kurs konnte nicht angelegt werden.") };
+      return { ok: false, reason: "http", message: parseApiDetail(data, "Kurs konnte nicht angelegt werden.") };
     }
 
     const course = parseCourse(data);
@@ -162,7 +141,7 @@ export async function updateCourse(
 
     const data: unknown = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { ok: false, reason: "http", message: parseDetail(data, "Kurs konnte nicht gespeichert werden.") };
+      return { ok: false, reason: "http", message: parseApiDetail(data, "Kurs konnte nicht gespeichert werden.") };
     }
 
     const course = parseCourse(data);
@@ -192,7 +171,7 @@ export async function deleteCourse(courseId: string): Promise<DeleteCourseResult
 
     const data: unknown = await res.json().catch(() => ({}));
     if (!res.ok) {
-      return { ok: false, reason: "http", message: parseDetail(data, "Kurs konnte nicht gelöscht werden.") };
+      return { ok: false, reason: "http", message: parseApiDetail(data, "Kurs konnte nicht gelöscht werden.") };
     }
 
     const detail =

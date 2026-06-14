@@ -50,4 +50,50 @@ export {
   type CreateInvitationResult,
   type InvitationRole,
 } from "./invitationsApi";
+export type { LiveHostState, LivePlayState, QuizJoinPreview } from "./quizLiveApi";
+export type {
+  ExamAttemptState,
+  ExamMeta,
+  ExamResultDetail,
+  ExamResultSummary,
+} from "./examApi";
+export {
+  fetchExamMeta,
+  examTeacherAction,
+  fetchExamPreview,
+  saveExamAnswer,
+  submitExam,
+  fetchExamResults,
+  fetchExamResultDetail,
+} from "./examApi";
+export {
+  joinQuizByCode,
+  fetchQuizJoinPreview,
+  fetchLiveHostState,
+  liveHostAction,
+  fetchLivePlayState,
+  submitLiveAnswer,
+} from "./quizLiveApi";
 export { isRecord } from "./guards";
+export {
+  fetchCourseDetail,
+  fetchCourseQuizzes,
+  createQuizFromPdf,
+  fetchQuizDetail,
+  publishQuiz,
+  updateQuestion,
+  deleteQuestion,
+  updateChoice,
+  addQuestion,
+  addChoice,
+  deleteChoice,
+  deleteQuiz,
+  type QuizSummary,
+  type QuizDetail,
+  type QuizQuestion,
+  type QuizChoice,
+  type CourseDetail,
+  type QuizDifficulty,
+  type QuizStatus,
+  type QuizType,
+} from "./quizzesApi";

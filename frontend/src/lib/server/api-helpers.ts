@@ -103,6 +103,12 @@ export function frontendRegisterUrl(inviteToken: string): string {
   return `${base}/register?invite_token=${encodeURIComponent(inviteToken)}`;
 }
 
+export function frontendDashboardUrl(): string {
+  const base =
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+  return `${base}/dashboard`;
+}
+
 export async function sendInvitationEmail(to: string, registerUrl: string): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.INVITE_FROM_EMAIL ?? "LecturAI <onboarding@resend.dev>";
@@ -127,6 +133,43 @@ export async function sendInvitationEmail(to: string, registerUrl: string): Prom
           <p><a href="${registerUrl}">Hier registrieren</a></p>
           <p>Link (falls der Button nicht funktioniert):<br>${registerUrl}</p>
           <p>Der Link ist 7 Tage gültig.</p>
+        `,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function sendCourseAddedEmail(
+  to: string,
+  courseName: string,
+  dashboardUrl: string,
+): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.INVITE_FROM_EMAIL ?? "LecturAI <onboarding@resend.dev>";
+
+  if (!apiKey) {
+    return false;
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject: `Neuer Kurs in LecturAI: ${courseName}`,
+        html: `
+          <p>Du wurdest dem Kurs <strong>${courseName}</strong> hinzugefügt.</p>
+          <p>Der Kurs ist ab sofort in deinem Dashboard sichtbar — melde dich einfach an:</p>
+          <p><a href="${dashboardUrl}">Zum Dashboard</a></p>
+          <p>Link (falls der Button nicht funktioniert):<br>${dashboardUrl}</p>
         `,
       }),
     });

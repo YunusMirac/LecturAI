@@ -11,24 +11,31 @@ const mockDeleteEq = vi.fn();
 
 vi.mock("@/lib/server/require-managed-course", () => ({
   requireManagedCourse: (...args: unknown[]) => mockRequireManagedCourse(...args),
-  createAdminClient: () => ({
-    from: (table: string) => {
-      if (table !== "courses") throw new Error(`unexpected table ${table}`);
-      return {
-        update: () => ({
-          eq: () => ({
-            select: () => ({
-              single: mockUpdateSingle,
+}));
+
+vi.mock("@/lib/server/api-helpers", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/server/api-helpers")>();
+  return {
+    ...actual,
+    createAdminClient: () => ({
+      from: (table: string) => {
+        if (table !== "courses") throw new Error(`unexpected table ${table}`);
+        return {
+          update: () => ({
+            eq: () => ({
+              select: () => ({
+                single: mockUpdateSingle,
+              }),
             }),
           }),
-        }),
-        delete: () => ({
-          eq: mockDeleteEq,
-        }),
-      };
-    },
-  }),
-}));
+          delete: () => ({
+            eq: mockDeleteEq,
+          }),
+        };
+      },
+    }),
+  };
+});
 
 async function readJson(res: Response) {
   return { status: res.status, body: await res.json() };

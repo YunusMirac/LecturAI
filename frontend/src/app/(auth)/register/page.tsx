@@ -14,8 +14,7 @@ import {
 } from "@/lib/api";
 import { roleLabelDe } from "@/lib/auth";
 
-const inputClass =
-  "min-h-[3.5rem] w-full rounded-2xl border-2 border-[#e0e0e0] bg-white/50 px-5 py-4 text-lg text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] focus:ring-4 focus:ring-[#2a9d8f]/20 sm:text-xl dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-100";
+import { inputClassAuth } from "@/lib/ui/form-classes";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -226,7 +225,7 @@ function RegisterForm() {
               disabled={previewLoading || Boolean(previewError)}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={inputClass}
+              className={inputClassAuth}
             />
           </div>
           <div>
@@ -245,7 +244,7 @@ function RegisterForm() {
               disabled={previewLoading || Boolean(previewError)}
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
-              className={inputClass}
+              className={inputClassAuth}
             />
           </div>
 

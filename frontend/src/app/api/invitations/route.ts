@@ -1,14 +1,23 @@
 import {
   createAdminClient,
+  frontendDashboardUrl,
   frontendRegisterUrl,
   generateInviteToken,
   getAuthenticatedProfile,
+  sendCourseAddedEmail,
   sendInvitationEmail,
 } from "@/lib/server/api-helpers";
 import {
   validateInvitationRequest,
   type InvitationBody,
 } from "@/lib/server/invitations-validation";
+import {
+  acceptPendingInvitationsForCourse,
+  addStudentToCourse,
+  canInviteEmailAsStudent,
+  findProfileByEmail,
+  isCourseMember,
+} from "@/lib/server/student-course-enrollment";
 import { NextResponse } from "next/server";
 
 export async function POST(request: Request) {
@@ -29,12 +38,12 @@ export async function POST(request: Request) {
   }
 
   const { email, role, courseId } = validated;
+  const admin = createAdminClient();
 
   if (role === "student") {
-    const admin = createAdminClient();
     const { data: course } = await admin
       .from("courses")
-      .select("id, teacher_id")
+      .select("id, name, teacher_id")
       .eq("id", courseId!)
       .maybeSingle();
 
@@ -47,9 +56,57 @@ export async function POST(request: Request) {
         { status: 403 },
       );
     }
+
+    const existingProfile = await findProfileByEmail(admin, email);
+    if (existingProfile) {
+      if (!canInviteEmailAsStudent(existingProfile)) {
+        return NextResponse.json(
+          {
+            detail:
+              "Diese E-Mail ist bereits registriert, aber nicht als Schüler:in. Registrierung über Einladungslink nicht möglich.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const alreadyMember = await isCourseMember(admin, courseId!, existingProfile.id);
+      if (alreadyMember) {
+        return NextResponse.json(
+          {
+            detail: "Diese Schüler:in ist bereits in diesem Kurs.",
+            added_directly: true,
+            already_member: true,
+          },
+          { status: 409 },
+        );
+      }
+
+      await addStudentToCourse(admin, courseId!, existingProfile.id);
+      await acceptPendingInvitationsForCourse(admin, courseId!, email);
+
+      const dashboardUrl = frontendDashboardUrl();
+      const emailSent = await sendCourseAddedEmail(
+        email,
+        String((course as { name: string }).name),
+        dashboardUrl,
+      );
+
+      return NextResponse.json(
+        {
+          email,
+          course_id: courseId,
+          added_directly: true,
+          already_member: false,
+          email_sent: emailSent,
+          detail: emailSent
+            ? "Schüler:in ist bereits registriert und wurde dem Kurs hinzugefügt. Benachrichtigung per E-Mail gesendet."
+            : "Schüler:in ist bereits registriert und sieht den Kurs ab sofort im Dashboard.",
+        },
+        { status: 201 },
+      );
+    }
   }
 
-  const admin = createAdminClient();
   const inviteToken = generateInviteToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -79,6 +136,7 @@ export async function POST(request: Request) {
   return NextResponse.json(
     {
       ...invitation,
+      added_directly: false,
       email_sent: emailSent,
       register_url: registerUrl,
     },

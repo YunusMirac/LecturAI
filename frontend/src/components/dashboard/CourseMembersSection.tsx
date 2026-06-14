@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { fetchCourseMembers, removeCourseMember, type CourseMember, type CourseMembersPayload } from "@/lib/api/courseMembersApi";
-import type { Course } from "@/lib/api/coursesApi";
+import {
+  fetchCourseMembers,
+  removeCourseMember,
+  type CourseMember,
+  type CourseMembersPayload,
+} from "@/lib/api/courseMembersApi";
 
-const selectClass =
-  "w-full rounded-xl border border-white/50 bg-white/50 px-4 py-3 text-sm text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] dark:border-white/15 dark:bg-zinc-900/60 dark:text-zinc-100";
-
-type CourseMembersPanelProps = {
-  courses: Course[];
+type CourseMembersSectionProps = {
+  courseId: string;
   refreshKey?: number;
 };
 
@@ -41,20 +42,14 @@ function statusBadge(member: CourseMember) {
   );
 }
 
-export function CourseMembersPanel({ courses, refreshKey = 0 }: CourseMembersPanelProps) {
-  const [selectedCourseId, setSelectedCourseId] = useState("");
+export function CourseMembersSection({ courseId, refreshKey = 0 }: CourseMembersSectionProps) {
   const [payload, setPayload] = useState<CourseMembersPayload | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [removingEmail, setRemovingEmail] = useState<string | null>(null);
 
-  const loadMembers = useCallback(async (courseId: string) => {
-    if (!courseId) {
-      setPayload(null);
-      setError(null);
-      return;
-    }
+  const loadMembers = useCallback(async () => {
     setLoading(true);
     setError(null);
     setActionMsg(null);
@@ -72,10 +67,9 @@ export function CourseMembersPanel({ courses, refreshKey = 0 }: CourseMembersPan
       return;
     }
     setPayload(result.data);
-  }, []);
+  }, [courseId]);
 
   async function onRemoveMember(member: CourseMember) {
-    if (!selectedCourseId) return;
     const actionLabel =
       member.status === "registered"
         ? `${member.email} aus dem Kurs entfernen?\n\nDas Login-Konto bleibt bestehen.`
@@ -85,32 +79,21 @@ export function CourseMembersPanel({ courses, refreshKey = 0 }: CourseMembersPan
     setRemovingEmail(member.email);
     setError(null);
     setActionMsg(null);
-    const result = await removeCourseMember(selectedCourseId, member.email);
+    const result = await removeCourseMember(courseId, member.email);
     setRemovingEmail(null);
     if (!result.ok) {
       setError(result.message ?? "Entfernen fehlgeschlagen.");
       return;
     }
     setActionMsg(result.detail);
-    await loadMembers(selectedCourseId);
+    await loadMembers();
   }
 
   useEffect(() => {
-    if (courses.length === 1 && !selectedCourseId) {
-      queueMicrotask(() => setSelectedCourseId(courses[0]!.id));
-    }
-  }, [courses, selectedCourseId]);
-
-  useEffect(() => {
-    if (!selectedCourseId) return;
     queueMicrotask(() => {
-      void loadMembers(selectedCourseId);
+      void loadMembers();
     });
-  }, [selectedCourseId, loadMembers, refreshKey]);
-
-  if (courses.length === 0) {
-    return null;
-  }
+  }, [loadMembers, refreshKey]);
 
   return (
     <div className="glass-panel rounded-2xl p-6 sm:p-8">
@@ -120,35 +103,10 @@ export function CourseMembersPanel({ courses, refreshKey = 0 }: CourseMembersPan
         nehmen — nicht das Konto löschen.
       </p>
 
-      <div className="mb-6 max-w-xl">
-        <label
-          htmlFor="members-course-select"
-          className="mb-1 block text-sm font-medium text-[#666666] dark:text-zinc-400"
-        >
-          Kurs
-        </label>
-        <select
-          id="members-course-select"
-          value={selectedCourseId}
-          onChange={(e) => setSelectedCourseId(e.target.value)}
-          className={selectClass}
-        >
-          <option value="">— Kurs wählen —</option>
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-              {c.semester ? ` (${c.semester})` : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-
       {loading ? (
         <p className="text-sm text-[#666666] dark:text-zinc-400">Lade Mitglieder…</p>
       ) : error ? (
         <p className="text-sm text-red-600 dark:text-red-300">{error}</p>
-      ) : !selectedCourseId ? (
-        <p className="text-sm text-[#666666] dark:text-zinc-400">Bitte einen Kurs auswählen.</p>
       ) : payload ? (
         <>
           {actionMsg ? (
@@ -168,7 +126,7 @@ export function CourseMembersPanel({ courses, refreshKey = 0 }: CourseMembersPan
 
           {payload.members.length === 0 ? (
             <p className="text-sm text-[#666666] dark:text-zinc-400">
-              Noch keine Schüler:innen — lade jemanden über „Schüler:in zu Kurs einladen“ ein.
+              Noch keine Schüler:innen — lade jemanden über das Formular oben ein.
             </p>
           ) : (
             <div className="overflow-x-auto">

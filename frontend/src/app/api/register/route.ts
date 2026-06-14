@@ -58,7 +58,11 @@ export async function POST(request: Request) {
     const msg = createError.message.toLowerCase();
     if (msg.includes("already") || msg.includes("registered")) {
       return NextResponse.json(
-        { email: ["Diese E-Mail ist bereits registriert."] },
+        {
+          email: [
+            "Diese E-Mail ist bereits registriert. Bitte anmelden — neue Kurse erscheinen automatisch im Dashboard.",
+          ],
+        },
         { status: 400 },
       );
     }
