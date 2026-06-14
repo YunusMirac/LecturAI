@@ -1,36 +1,28 @@
-# LecturAI – Hinweise zur Abgabe (Quellcode-Archiv)
+# LecturAI — Hinweise zur Abgabe
 
-Dieses Archiv enthält **nur Quelltext und Konfiguration**. Folgendes ist **nicht** enthalten (wird lokal erzeugt oder ist geheim):
+## Stack
 
-- `node_modules`, `frontend/.next` (Frontend-Build-Cache)
-- `backend/venv` (Python-Virtualenv)
-- `.git` (Versionsverlauf)
-- `.env` / `.env.local` (Zugangsdaten – bitte aus `backend/env.example` bzw. `frontend/.env.example` ableiten)
+- **Frontend:** Next.js (`frontend/`)
+- **Backend:** Supabase (Auth + PostgreSQL + RLS)
+- **Kein Django** mehr im Betrieb (`backend/` = Legacy-Referenz)
 
-## Frontend (Next.js)
+## Starten
 
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local   # Keys aus Supabase Dashboard eintragen
 npm run dev
 ```
 
-Optional Produktions-Build: `npm run build`
+Vollständige Anleitung: **`docs/SUPABASE_SETUP.md`**
 
-## Backend (Django)
+## Enthalten / nicht enthalten
 
-```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
+- ✅ Quellcode Frontend + SQL-Migration
+- ❌ `node_modules`, `.next`, `.env.local` (Secrets)
+- ❌ Django `venv`
 
-Umgebungsvariablen: `backend/env.example` nach `.env` kopieren und anpassen. Es wird mindestens **`DATABASE_URL`** (PostgreSQL) benötigt.
+## Erster Admin
 
-```bash
-python manage.py migrate
-python manage.py runserver
-```
-
-Bei Fragen zur Architektur siehe `docs/ARCHITECTURE.md` und `docs/PROJEKTSTRUKTUR.md`.
+Siehe `docs/SUPABASE_SETUP.md` Abschnitt 4 und `supabase/scripts/create_admin.sql`.
