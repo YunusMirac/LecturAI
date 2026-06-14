@@ -306,7 +306,7 @@ export default function Home() {
             {/* CTA buttons */}
             <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
               <Link
-                href="/register"
+                href="/login"
                 className="inline-flex items-center justify-center rounded-xl px-8 py-3.5 text-base font-bold text-primary-foreground transition hover:brightness-110 active:scale-[0.98]"
                 style={{
                   backgroundColor: "var(--primary)",
@@ -314,13 +314,14 @@ export default function Home() {
                     "0 0 22px color-mix(in srgb, var(--primary) 60%, transparent), 0 0 44px color-mix(in srgb, var(--primary) 25%, transparent), 0 4px 16px color-mix(in srgb, var(--primary) 40%, transparent)",
                 }}
               >
-                Jetzt kostenlos starten →
+                Anmelden →
               </Link>
               <Link
-                href="/login"
+                href="/register"
+                title="Registrierung nur mit Einladungslink"
                 className="text-sm font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline"
               >
-                Bereits Konto? Zum Login
+                Mit Einladungslink registrieren
               </Link>
             </div>
           </motion.div>
@@ -409,10 +410,10 @@ export default function Home() {
               Bereit, Zeit zu sparen?
             </h2>
             <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
-              Starte jetzt und erlebe, wie einfach Prüfungsvorbereitung sein kann.
+              Einladung von Admin oder Lehrkraft erhalten? Dann Link öffnen und Passwort setzen.
             </p>
             <Link
-              href="/register"
+              href="/login"
               className="mt-8 inline-flex items-center justify-center rounded-xl px-8 py-3.5 text-sm font-bold text-primary-foreground transition hover:brightness-110 active:scale-[0.98]"
               style={{
                 backgroundColor: "var(--primary)",
@@ -420,7 +421,7 @@ export default function Home() {
                   "0 0 24px color-mix(in srgb, var(--primary) 55%, transparent), 0 4px 16px color-mix(in srgb, var(--primary) 35%, transparent)",
               }}
             >
-              Kostenlos registrieren →
+              Anmelden →
             </Link>
           </motion.div>
         </section>

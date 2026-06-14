@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
-import { getSession, signOut } from "@/lib/api";
+import { getSession } from "@/lib/api";
+import { performLogout } from "@/lib/auth-logout";
 import { roleLabelDe, type UserSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -21,7 +22,9 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
     const supabase = createClient();
     const {
       data: { subscription },
@@ -34,10 +37,11 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
   const authed = session != null && session.userId != null;
 
   const logout = useCallback(async () => {
-    await signOut();
     setSession(null);
-    router.push("/");
-    router.refresh();
+    await performLogout("/login", (path) => {
+      router.replace(path);
+      router.refresh();
+    });
   }, [router]);
 
   const userLine =
@@ -122,9 +126,10 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
         </Link>
         <Link
           href="/register"
+          title="Registrierung nur mit Einladungslink"
           className="rounded-lg border border-transparent bg-[#f5c542] px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-[#3a3a3a] shadow-[0_2px_0_rgb(0_0_0_/_0.14)] transition hover:brightness-105"
         >
-          Registrieren
+          Mit Einladung
         </Link>
       </>
     );
@@ -138,17 +143,18 @@ export function SessionNav({ tone = "light" }: SessionNavProps) {
       >
         Login
       </Link>
-      <Link
-        href="/register"
-        className="rounded-lg px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-accent-foreground transition hover:brightness-110 active:scale-95"
-        style={{
-          backgroundColor: "var(--accent)",
-          boxShadow:
-            "0 3px 0 color-mix(in srgb, var(--accent-foreground) 18%, transparent), 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent)",
-        }}
-      >
-        Registrieren
-      </Link>
+        <Link
+          href="/register"
+          title="Registrierung nur mit Einladungslink aus E-Mail"
+          className="rounded-lg px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-accent-foreground transition hover:brightness-110 active:scale-95"
+          style={{
+            backgroundColor: "var(--accent)",
+            boxShadow:
+              "0 3px 0 color-mix(in srgb, var(--accent-foreground) 18%, transparent), 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent)",
+          }}
+        >
+          Mit Einladung
+        </Link>
     </>
   );
 }

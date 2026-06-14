@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { BookOpen, Loader2, LogOut } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
 import { AdminPanel } from "@/components/dashboard/AdminPanel";
 import { TeacherPanel } from "@/components/dashboard/TeacherPanel";
-import { fetchCourses, getSession, signOut, type Course } from "@/lib/api";
+import { fetchCourses, getSession, type Course } from "@/lib/api";
+import { performLogout } from "@/lib/auth-logout";
 import { roleLabelDe, type UserSession } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/client";
 
@@ -21,27 +22,51 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userSession, setUserSession] = useState<UserSession | null | undefined>(undefined);
+  const [signingOut, setSigningOut] = useState(false);
+  const logoutStartedRef = useRef(false);
+
+  const beginLogout = useCallback(() => {
+    if (logoutStartedRef.current) return;
+    logoutStartedRef.current = true;
+    setSigningOut(true);
+    setUserSession(null);
+    setCourses([]);
+    setError(null);
+    void performLogout("/login", (path) => {
+      router.replace(path);
+      router.refresh();
+    });
+  }, [router]);
 
   useEffect(() => {
-    void getSession().then(setUserSession);
+    void getSession().then((session) => {
+      if (logoutStartedRef.current) return;
+      setUserSession(session);
+      if (!session) {
+        router.replace("/login");
+      }
+    });
+
     const supabase = createClient();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (logoutStartedRef.current) return;
       if (!session) {
-        setUserSession(null);
-        router.replace("/login");
+        beginLogout();
         return;
       }
       void getSession().then(setUserSession);
     });
     return () => subscription.unsubscribe();
-  }, [router]);
+  }, [beginLogout, router]);
 
   const loadCourses = useCallback(async () => {
+    if (logoutStartedRef.current) return;
+
     const session = await getSession();
     if (!session) {
-      router.replace("/login");
+      beginLogout();
       return;
     }
     setUserSession(session);
@@ -51,8 +76,7 @@ export default function DashboardPage() {
       const result = await fetchCourses();
       if (!result.ok) {
         if (result.reason === "unauthorized") {
-          await signOut();
-          router.replace("/login");
+          beginLogout();
           return;
         }
         if (result.reason === "network") {
@@ -70,18 +94,24 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [beginLogout]);
 
   useEffect(() => {
+    if (signingOut) return;
     queueMicrotask(() => {
       void loadCourses();
     });
-  }, [loadCourses]);
+  }, [loadCourses, signingOut]);
 
-  async function logout() {
-    await signOut();
-    router.push("/");
-    router.refresh();
+  if (signingOut || userSession === null) {
+    return (
+      <MarketingAuthShell mainVariant="wide">
+        <div className="mx-auto flex min-h-[40vh] w-full max-w-5xl flex-col items-center justify-center gap-3 px-4 text-[#666666] dark:text-zinc-300">
+          <Loader2 className="h-8 w-8 animate-spin text-[#2a9d8f]" aria-hidden />
+          <p className="text-lg">Abmeldung…</p>
+        </div>
+      </MarketingAuthShell>
+    );
   }
 
   return (
@@ -123,7 +153,7 @@ export default function DashboardPage() {
             </button>
             <button
               type="button"
-              onClick={() => void logout()}
+              onClick={beginLogout}
               className="glass-panel inline-flex items-center justify-center gap-2 rounded-xl border border-white/60 px-4 py-2.5 text-sm font-semibold text-[#666666] transition hover:border-red-300/60 hover:text-red-700 dark:border-white/10 dark:text-zinc-300 dark:hover:border-red-500/40 dark:hover:text-red-300"
             >
               <LogOut className="h-4 w-4" aria-hidden />

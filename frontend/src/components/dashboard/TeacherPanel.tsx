@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { CourseManagePanel } from "@/components/dashboard/CourseManagePanel";
+import { CourseMembersPanel } from "@/components/dashboard/CourseMembersPanel";
 import { createCourse, postInvitation, type Course } from "@/lib/api";
 
 const inputClass =
@@ -27,6 +29,7 @@ export function TeacherPanel({ courses, onCoursesChanged }: TeacherPanelProps) {
   const [studentErr, setStudentErr] = useState<string | null>(null);
   const [studentLinkHint, setStudentLinkHint] = useState<string | null>(null);
   const [inviting, setInviting] = useState(false);
+  const [membersRefreshKey, setMembersRefreshKey] = useState(0);
 
   async function onCreateCourse(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +78,7 @@ export function TeacherPanel({ courses, onCoursesChanged }: TeacherPanelProps) {
       setStudentLinkHint(r.registerUrl);
     }
     setStudentEmail("");
+    setMembersRefreshKey((k) => k + 1);
     onCoursesChanged();
   }
 
@@ -189,6 +193,10 @@ export function TeacherPanel({ courses, onCoursesChanged }: TeacherPanelProps) {
           </div>
         ) : null}
       </div>
+
+      <CourseManagePanel courses={courses} onCoursesChanged={onCoursesChanged} />
+
+      <CourseMembersPanel courses={courses} refreshKey={membersRefreshKey} />
     </section>
   );
 }

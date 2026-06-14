@@ -5,13 +5,11 @@ import {
   getAuthenticatedProfile,
   sendInvitationEmail,
 } from "@/lib/server/api-helpers";
+import {
+  validateInvitationRequest,
+  type InvitationBody,
+} from "@/lib/server/invitations-validation";
 import { NextResponse } from "next/server";
-
-type InvitationBody = {
-  email?: string;
-  role?: "teacher" | "student";
-  course_id?: string | null;
-};
 
 export async function POST(request: Request) {
   const auth = await getAuthenticatedProfile(request);
@@ -25,48 +23,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ detail: "Ungültiger JSON-Body." }, { status: 400 });
   }
 
-  const email = body.email?.trim().toLowerCase();
-  const role = body.role;
-  const courseId = body.course_id ?? null;
-
-  if (!email || !email.includes("@")) {
-    return NextResponse.json({ email: ["Gültige E-Mail erforderlich."] }, { status: 400 });
-  }
-  if (role !== "teacher" && role !== "student") {
-    return NextResponse.json({ role: ["role muss teacher oder student sein."] }, { status: 400 });
+  const validated = validateInvitationRequest(body, profile.role);
+  if ("status" in validated) {
+    return NextResponse.json(validated.body, { status: validated.status });
   }
 
-  if (role === "teacher") {
-    if (profile.role !== "admin") {
-      return NextResponse.json({ detail: "Nur Admins dürfen Lehrkräfte einladen." }, { status: 403 });
-    }
-    if (courseId) {
-      return NextResponse.json(
-        { course_id: ["Bei Lehrer-Einladungen darf kein Kurs angegeben werden."] },
-        { status: 400 },
-      );
-    }
-  }
+  const { email, role, courseId } = validated;
 
   if (role === "student") {
-    if (profile.role !== "teacher") {
-      return NextResponse.json(
-        { detail: "Nur Lehrkräfte dürfen Schüler:innen einladen." },
-        { status: 403 },
-      );
-    }
-    if (!courseId) {
-      return NextResponse.json(
-        { course_id: ["Für Schüler:innen-Einladungen ist course_id erforderlich."] },
-        { status: 400 },
-      );
-    }
-
     const admin = createAdminClient();
     const { data: course } = await admin
       .from("courses")
       .select("id, teacher_id")
-      .eq("id", courseId)
+      .eq("id", courseId!)
       .maybeSingle();
 
     if (!course) {

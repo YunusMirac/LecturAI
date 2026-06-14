@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
 import { MarketingAuthShell } from "@/components/landing/MarketingAuthShell";
-import { postRegister } from "@/lib/api";
+import {
+  fetchInvitationPreview,
+  postRegister,
+  signInWithPassword,
+} from "@/lib/api";
+import { roleLabelDe } from "@/lib/auth";
 
 const inputClass =
   "min-h-[3.5rem] w-full rounded-2xl border-2 border-[#e0e0e0] bg-white/50 px-5 py-4 text-lg text-[#333333] outline-none transition placeholder:text-[#999999] focus:border-[#2a9d8f] focus:ring-4 focus:ring-[#2a9d8f]/20 sm:text-xl dark:border-zinc-600 dark:bg-zinc-900/40 dark:text-zinc-100";
@@ -14,23 +20,60 @@ const inputClass =
 const ease = [0.22, 1, 0.36, 1] as const;
 
 function RegisterForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const [inviteToken, setInviteToken] = useState(
-    () => searchParams.get("invite_token") ?? searchParams.get("token") ?? "",
-  );
+  const inviteToken =
+    searchParams.get("invite_token") ?? searchParams.get("token") ?? "";
+
   const [email, setEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"teacher" | "student" | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(Boolean(inviteToken.trim()));
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const hasInviteLink = Boolean(inviteToken.trim());
+
+  useEffect(() => {
+    if (!inviteToken.trim()) {
+      queueMicrotask(() => setPreviewLoading(false));
+      return;
+    }
+
+    let cancelled = false;
+    queueMicrotask(() => {
+      void fetchInvitationPreview(inviteToken).then((result) => {
+        if (cancelled) return;
+        setPreviewLoading(false);
+        if (!result.ok) {
+          setPreviewError(result.errorMessage);
+          return;
+        }
+        setEmail(result.preview.email);
+        setInviteRole(result.preview.role);
+        setPreviewError(null);
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteToken]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
     if (!inviteToken.trim()) {
-      setError("Einladungstoken fehlt. Nutze den Link aus deiner Einladungs-E-Mail (?invite_token=…).");
+      setError("Registrierung nur mit gültigem Einladungslink möglich.");
+      return;
+    }
+    if (!email.trim()) {
+      setError("E-Mail konnte nicht aus der Einladung geladen werden.");
       return;
     }
     if (password !== passwordConfirm) {
@@ -41,6 +84,7 @@ function RegisterForm() {
       setError("Passwort muss mindestens 8 Zeichen haben.");
       return;
     }
+
     setLoading(true);
     try {
       const result = await postRegister({
@@ -53,7 +97,15 @@ function RegisterForm() {
         setError(result.errorMessage);
         return;
       }
-      setSuccess(result.detail);
+
+      const loginResult = await signInWithPassword(result.email, password);
+      if (loginResult.ok) {
+        router.push("/dashboard");
+        router.refresh();
+        return;
+      }
+
+      setSuccess(`${result.detail} Bitte melde dich an.`);
       setPassword("");
       setPasswordConfirm("");
     } catch {
@@ -61,6 +113,45 @@ function RegisterForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (!hasInviteLink) {
+    return (
+      <MarketingAuthShell>
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease }}
+          className="glass-panel w-full max-w-xl overflow-hidden rounded-2xl p-10 sm:p-12"
+        >
+          <h1 className="mb-4 text-3xl font-extrabold tracking-tight">Registrierung</h1>
+          <p className="text-lg text-muted-foreground">
+            LecturAI nutzt <strong className="text-foreground">Einladungen</strong> — es gibt
+            keine offene Registrierung ohne Link. Das Formular erscheint, sobald du den Link aus
+            der Einladungs-E-Mail (oder aus dem Dashboard) öffnest.
+          </p>
+          <div className="mt-6 space-y-3 rounded-2xl border border-[#2a9d8f]/25 bg-[#2a9d8f]/8 px-4 py-4 text-sm text-muted-foreground">
+            <p className="font-semibold text-[#2a9d8f]">So testest du lokal:</p>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li>Admin im Supabase anlegen (siehe <code className="text-xs">docs/SUPABASE_SETUP.md</code>)</li>
+              <li>Als Admin einloggen → Lehrkraft oder Schüler:in einladen</li>
+              <li>Registrierungslink kopieren (Dashboard zeigt ihn, wenn E-Mail nicht versendet wurde)</li>
+              <li>Diesen Link im Browser öffnen → nur Passwort setzen</li>
+            </ol>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Die URL muss so aussehen:{" "}
+            <code className="break-all text-xs">/register?invite_token=…</code>
+          </p>
+          <Link
+            href="/login"
+            className="mt-8 inline-block font-semibold text-[#2a9d8f] underline underline-offset-4"
+          >
+            Zum Login
+          </Link>
+        </motion.div>
+      </MarketingAuthShell>
+    );
   }
 
   return (
@@ -79,7 +170,7 @@ function RegisterForm() {
             backgroundColor: "rgb(42 157 143 / 0.08)",
           }}
         >
-          Einladung erforderlich
+          Einladung
         </span>
         <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-muted-foreground sm:text-base">
           LecturAI
@@ -93,49 +184,32 @@ function RegisterForm() {
               backgroundClip: "text",
             }}
           >
-            Registrieren
+            Passwort setzen
           </span>
         </h1>
 
+        {previewLoading ? (
+          <p className="mb-6 text-muted-foreground">Einladung wird geladen…</p>
+        ) : previewError ? (
+          <p className="mb-6 rounded-2xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-destructive">
+            {previewError}
+          </p>
+        ) : (
+          <div className="mb-6 rounded-2xl border border-[#2a9d8f]/25 bg-[#2a9d8f]/8 px-4 py-3 text-sm">
+            {inviteRole ? (
+              <p className="font-semibold text-[#2a9d8f]">
+                Rolle: {roleLabelDe(inviteRole)}
+              </p>
+            ) : null}
+            {email ? (
+              <p className="mt-1 break-all text-muted-foreground">
+                E-Mail: <span className="font-medium text-foreground">{email}</span>
+              </p>
+            ) : null}
+          </div>
+        )}
+
         <form onSubmit={onSubmit} className="space-y-6">
-          <div>
-            <label
-              htmlFor="invite_token"
-              className="mb-2 block text-base font-semibold text-muted-foreground sm:text-lg"
-            >
-              Einladungstoken
-            </label>
-            <input
-              id="invite_token"
-              type="text"
-              autoComplete="off"
-              required
-              value={inviteToken}
-              onChange={(e) => setInviteToken(e.target.value)}
-              placeholder="Aus dem Einladungs-Link"
-              className={inputClass}
-            />
-            <p className="mt-2 text-sm text-muted-foreground">
-              Registrierung nur mit gültigem Token. Der Link aus der E-Mail füllt das Feld oft automatisch.
-            </p>
-          </div>
-          <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-base font-semibold text-muted-foreground sm:text-lg"
-            >
-              E-Mail (wie in der Einladung)
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClass}
-            />
-          </div>
           <div>
             <label
               htmlFor="password"
@@ -149,6 +223,7 @@ function RegisterForm() {
               autoComplete="new-password"
               required
               minLength={8}
+              disabled={previewLoading || Boolean(previewError)}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
@@ -167,6 +242,7 @@ function RegisterForm() {
               autoComplete="new-password"
               required
               minLength={8}
+              disabled={previewLoading || Boolean(previewError)}
               value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
               className={inputClass}
@@ -192,7 +268,7 @@ function RegisterForm() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || previewLoading || Boolean(previewError) || !email}
             className="min-h-[3.75rem] w-full rounded-2xl bg-[#2a9d8f] py-4 text-lg font-bold text-white transition hover:brightness-110 disabled:opacity-50 sm:text-xl"
             style={{
               boxShadow: "0 6px 24px rgb(42 157 143 / 0.35)",
@@ -206,14 +282,6 @@ function RegisterForm() {
           Schon registriert?{" "}
           <Link href="/login" className="font-semibold text-[#2a9d8f] hover:underline">
             Anmelden
-          </Link>
-        </p>
-        <p className="mt-4 text-center">
-          <Link
-            href="/"
-            className="text-base text-[#666666] transition hover:text-[#333333] sm:text-lg dark:text-zinc-400 dark:hover:text-zinc-200"
-          >
-            ← Zur Startseite
           </Link>
         </p>
       </motion.div>

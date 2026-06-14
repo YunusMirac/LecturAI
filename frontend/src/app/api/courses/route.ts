@@ -1,4 +1,8 @@
 import { createAdminClient, getAuthenticatedProfile } from "@/lib/server/api-helpers";
+import {
+  canCreateCourse,
+  validateCreateCourseBody,
+} from "@/lib/server/invitations-validation";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
@@ -60,31 +64,31 @@ export async function GET(request: Request) {
   return NextResponse.json(data ?? []);
 }
 
-type CreateBody = { name?: string; semester?: string | null };
-
 export async function POST(request: Request) {
   const auth = await getAuthenticatedProfile(request);
   if ("error" in auth) return auth.error;
 
   const { profile, user } = auth;
-  if (profile.role !== "teacher" && profile.role !== "admin") {
+  if (!canCreateCourse(profile.role)) {
     return NextResponse.json(
       { detail: "Nur Lehrkräfte können Kurse anlegen." },
       { status: 403 },
     );
   }
 
-  let body: CreateBody;
+  let body: { name?: string; semester?: string | null };
   try {
-    body = (await request.json()) as CreateBody;
+    body = (await request.json()) as { name?: string; semester?: string | null };
   } catch {
     return NextResponse.json({ detail: "Ungültiger JSON-Body." }, { status: 400 });
   }
 
-  const name = body.name?.trim();
-  if (!name) {
-    return NextResponse.json({ name: ["Kursname ist erforderlich."] }, { status: 400 });
+  const validated = validateCreateCourseBody(body);
+  if ("status" in validated) {
+    return NextResponse.json(validated.body, { status: validated.status });
   }
+
+  const { name, semester } = validated;
 
   let admin;
   try {
@@ -101,7 +105,7 @@ export async function POST(request: Request) {
     .insert({
       teacher_id: user.id,
       name,
-      semester: body.semester?.trim() || null,
+      semester,
     })
     .select("id, name, semester, created_at, updated_at")
     .single();

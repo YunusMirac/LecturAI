@@ -49,7 +49,7 @@ export async function postInvitation(
   }
 }
 
-function parseInvitationError(data: unknown): string {
+export function parseInvitationError(data: unknown): string {
   if (!isRecord(data)) return "Einladung fehlgeschlagen.";
   const detail = data.detail;
   if (typeof detail === "string") return detail;

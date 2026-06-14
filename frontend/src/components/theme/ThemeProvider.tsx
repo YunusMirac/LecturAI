@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -58,10 +57,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
   const [mounted, setMounted] = useState(false);
 
-  // Nur React-State syncen — DOM wurde bereits vom Inline-Skript gesetzt.
-  useLayoutEffect(() => {
-    setThemeState(readStoredTheme());
-    setMounted(true);
+  useEffect(() => {
+    queueMicrotask(() => {
+      setThemeState(readStoredTheme());
+      setMounted(true);
+    });
   }, []);
 
   // Andere Browser-Tabs

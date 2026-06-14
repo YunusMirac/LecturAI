@@ -1,0 +1,12 @@
+.DS_Store
+*.pem
+
+# Env-Dateien (Secrets)
+.env
+.env.local
+.env.*.local
+
+# Frontend Build
+frontend/.next/
+frontend/node_modules/
+frontend/out/

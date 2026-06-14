@@ -107,6 +107,14 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+            <p className="mt-2 text-right">
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-[#2a9d8f] transition hover:underline sm:text-base"
+              >
+                Passwort vergessen?
+              </Link>
+            </p>
           </div>
 
           {error ? (
@@ -128,10 +136,9 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-8 text-center text-base text-muted-foreground sm:text-lg">
-          Noch kein Konto?{" "}
-          <Link href="/register" className="font-semibold text-[#2a9d8f] hover:underline">
-            Registrieren
-          </Link>
+          Noch kein Konto? Registrierung ist nur mit{" "}
+          <span className="font-semibold text-foreground">Einladungslink</span> möglich — du
+          erhältst ihn per E-Mail von deiner Lehrkraft oder dem Admin.
         </p>
         <p className="mt-4 text-center">
           <Link

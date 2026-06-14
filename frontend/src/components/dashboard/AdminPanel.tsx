@@ -138,7 +138,6 @@ export function AdminPanel() {
                 <tr className="border-b border-white/30 text-xs uppercase tracking-wide text-[#777777] dark:border-white/10 dark:text-zinc-500">
                   <th className="pb-2 pr-4 font-semibold">E-Mail</th>
                   <th className="pb-2 pr-4 font-semibold">Rolle</th>
-                  <th className="pb-2 pr-4 font-semibold">Login</th>
                   <th className="pb-2 font-semibold">Profil-ID</th>
                 </tr>
               </thead>
@@ -150,9 +149,6 @@ export function AdminPanel() {
                   >
                     <td className="py-2 pr-4 font-medium text-[#333333] dark:text-zinc-200">{u.email}</td>
                     <td className="py-2 pr-4 text-[#666666] dark:text-zinc-400">{roleLabelDe(u.role)}</td>
-                    <td className="py-2 pr-4 text-[#666666] dark:text-zinc-400">
-                      {u.has_login_account ? "ja" : "nein"}
-                    </td>
                     <td className="py-2 font-mono text-xs text-[#999999] dark:text-zinc-500">{u.id.slice(0, 8)}…</td>
                   </tr>
                 ))}

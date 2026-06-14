@@ -6,7 +6,6 @@ export type AdminProfile = {
   role: string;
   created_at: string;
   updated_at: string;
-  has_login_account: boolean;
 };
 
 export type FetchAdminUsersResult =
@@ -45,7 +44,6 @@ export async function fetchAdminUsers(): Promise<FetchAdminUsersResult> {
         role: String(o.role),
         created_at: String(o.created_at),
         updated_at: String(o.updated_at),
-        has_login_account: true,
       };
     });
 

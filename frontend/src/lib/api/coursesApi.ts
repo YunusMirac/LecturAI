@@ -26,6 +26,27 @@ export type CreateCourseResult =
   | { ok: true; course: Course }
   | { ok: false; reason: "unauthorized" | "forbidden" | "http" | "network"; message?: string };
 
+export type UpdateCoursePayload = {
+  name: string;
+  semester?: string | null;
+};
+
+export type UpdateCourseResult =
+  | { ok: true; course: Course }
+  | {
+      ok: false;
+      reason: "unauthorized" | "forbidden" | "not_found" | "http" | "network";
+      message?: string;
+    };
+
+export type DeleteCourseResult =
+  | { ok: true; detail: string }
+  | {
+      ok: false;
+      reason: "unauthorized" | "forbidden" | "not_found" | "http" | "network";
+      message?: string;
+    };
+
 function parseCourse(row: unknown): Course | null {
   if (typeof row !== "object" || row === null) return null;
   const o = row as Record<string, unknown>;
@@ -37,6 +58,18 @@ function parseCourse(row: unknown): Course | null {
     created_at: typeof o.created_at === "string" ? o.created_at : undefined,
     updated_at: typeof o.updated_at === "string" ? o.updated_at : undefined,
   };
+}
+
+function parseDetail(data: unknown, fallback: string): string {
+  if (
+    typeof data === "object" &&
+    data !== null &&
+    "detail" in data &&
+    typeof (data as { detail: unknown }).detail === "string"
+  ) {
+    return (data as { detail: string }).detail;
+  }
+  return fallback;
 }
 
 async function authHeaders(): Promise<HeadersInit | null> {
@@ -92,19 +125,81 @@ export async function createCourse(payload: CreateCoursePayload): Promise<Create
 
     const data: unknown = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const msg =
-        typeof data === "object" &&
-        data !== null &&
-        "detail" in data &&
-        typeof (data as { detail: unknown }).detail === "string"
-          ? (data as { detail: string }).detail
-          : "Kurs konnte nicht angelegt werden.";
-      return { ok: false, reason: "http", message: msg };
+      return { ok: false, reason: "http", message: parseDetail(data, "Kurs konnte nicht angelegt werden.") };
     }
 
     const course = parseCourse(data);
     if (!course) return { ok: false, reason: "http", message: "Unerwartete Antwort." };
     return { ok: true, course };
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+}
+
+export async function updateCourse(
+  courseId: string,
+  payload: UpdateCoursePayload,
+): Promise<UpdateCourseResult> {
+  const id = courseId.trim();
+  if (!id) return { ok: false, reason: "http", message: "Kurs-ID fehlt." };
+
+  try {
+    const headers = await authHeaders();
+    if (!headers) return { ok: false, reason: "unauthorized" };
+
+    const res = await fetch(`/api/courses/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      headers,
+      body: JSON.stringify({
+        name: payload.name.trim(),
+        semester: payload.semester?.trim() || null,
+      }),
+    });
+
+    if (res.status === 401) return { ok: false, reason: "unauthorized" };
+    if (res.status === 403) return { ok: false, reason: "forbidden" };
+    if (res.status === 404) return { ok: false, reason: "not_found" };
+
+    const data: unknown = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, reason: "http", message: parseDetail(data, "Kurs konnte nicht gespeichert werden.") };
+    }
+
+    const course = parseCourse(data);
+    if (!course) return { ok: false, reason: "http", message: "Unerwartete Antwort." };
+    return { ok: true, course };
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+}
+
+export async function deleteCourse(courseId: string): Promise<DeleteCourseResult> {
+  const id = courseId.trim();
+  if (!id) return { ok: false, reason: "http", message: "Kurs-ID fehlt." };
+
+  try {
+    const headers = await authHeaders();
+    if (!headers) return { ok: false, reason: "unauthorized" };
+
+    const res = await fetch(`/api/courses/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers,
+    });
+
+    if (res.status === 401) return { ok: false, reason: "unauthorized" };
+    if (res.status === 403) return { ok: false, reason: "forbidden" };
+    if (res.status === 404) return { ok: false, reason: "not_found" };
+
+    const data: unknown = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, reason: "http", message: parseDetail(data, "Kurs konnte nicht gelöscht werden.") };
+    }
+
+    const detail =
+      typeof data === "object" && data !== null && "detail" in data && typeof data.detail === "string"
+        ? data.detail
+        : "Kurs gelöscht.";
+    return { ok: true, detail };
   } catch {
     return { ok: false, reason: "network" };
   }

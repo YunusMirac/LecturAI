@@ -1,6 +1,6 @@
 # LecturAI — Supabase Setup (Schritt für Schritt)
 
-Nach dem Umbau läuft **alles über Supabase + Next.js**. Django wird **nicht mehr** benötigt.
+Alles läuft über **Supabase + Next.js** — kein separates Backend.
 
 ---
 
@@ -16,13 +16,19 @@ Nach dem Umbau läuft **alles über Supabase + Next.js**. Django wird **nicht me
 
 ## 2. Datenbank-Schema importieren
 
-1. **SQL Editor → New query**
-2. Inhalt von `supabase/migrations/001_lecturai_supabase_only.sql` einfügen
-3. **Run**
+Im **SQL Editor** nacheinander ausführen:
 
-⚠️ **Löscht alte Django-Tabellen**, falls vorhanden. Vorher Backup machen!
+| Datei | Zweck |
+|-------|--------|
+| `001_lecturai_supabase_only.sql` | Hauptschema (Tabellen, RLS, Trigger) |
+| `002_fix_auth_user_trigger.sql` | Fix bei „Database error creating new user“ |
+| `003_fix_profiles_role_trigger.sql` | Kaputte Profile bereinigen |
+| `004_fix_rls_and_grants.sql` | RLS-Rekursion + GRANTs |
+| `005_fix_courses_rls_recursion.sql` | Fix für 500 auf `courses` |
+| `006_profiles_role_immutable.sql` | Schutz: `profiles.role` nicht änderbar |
+| `007_register_atomic.sql` | Atomare Registrierung (Profil + Einladung + Kurs) |
 
-Falls du **„Database error creating new user“** beim Anlegen im Dashboard siehst, danach auch **`002_fix_auth_user_trigger.sql`** ausführen (oder erneut 001 — enthält den Fix jetzt auch).
+⚠️ **001 löscht alte Tabellen**, falls vorhanden. Vorher Backup machen!
 
 ---
 
@@ -41,7 +47,9 @@ Unter **Authentication → URL Configuration**:
 | Feld | Wert (lokal) |
 |------|----------------|
 | Site URL | `http://localhost:3000` |
-| Redirect URLs | `http://localhost:3000/**` |
+| Redirect URLs | `http://localhost:3000/**` (inkl. `/auth/callback`) |
+
+**API-Keys:** In neuen Supabase-Projekten den **Publishable Key** (`sb_publishable_…`) in `.env.local` als `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` setzen. Der alte JWT-`anon`-Key funktioniert oft nicht mehr — dann schlagen Login und Passwort-Reset mit „Load failed“ / „Invalid API key“ fehl.
 
 ---
 
@@ -107,30 +115,49 @@ npm run dev
 
 Öffne [http://localhost:3000](http://localhost:3000)
 
-**Django muss nicht mehr laufen.**
-
 ---
 
 ## 7. Ablauf testen
 
 1. **Admin** → `/login` → Dashboard → Lehrkraft einladen
-2. **Lehrkraft** → Link aus E-Mail oder UI → `/register?invite_token=...` → Passwort → Login
+2. **Lehrkraft** → Einladungslink öffnen → `/register?invite_token=...` → **nur Passwort** setzen → Auto-Login
 3. **Lehrkraft** → Kurs anlegen → Schüler:in einladen
-4. **Schüler:in** → registrieren → Login → Kurs im Dashboard
+4. **Schüler:in** → Link öffnen → Passwort setzen → Kurs im Dashboard
+
+Ausführlicher Testplan: **[docs/TESTPLAN.md](TESTPLAN.md)**
+
+Automatisierte Tests:
+
+```bash
+cd frontend && npm run test
+```
 
 ---
 
-## Architektur (neu)
+## Einladungs-Flow
+
+1. Lehrkraft/Admin erstellt Einladung → Link `/register?invite_token=…`
+2. Register-Seite ruft `GET /api/invitations/preview` auf → E-Mail + Rolle werden angezeigt
+3. Nutzer setzt nur Passwort → `POST /api/register` → atomare DB-Funktion `complete_invited_registration`
+
+Optional: **Resend** verschickt den Link per E-Mail (`RESEND_API_KEY`).
+
+---
+
+## Architektur
 
 ```text
 Next.js Frontend
-  ├── supabase-js (Login, Kurse, Profile) + RLS
-  ├── /api/register      → Service Role: Konto + Profil + Einladung
-  └── /api/invitations   → Service Role: Einladung + optional E-Mail
+  ├── supabase-js (Login, Logout, Session)
+  ├── GET /api/invitations/preview              → Einladung prüfen (öffentlich)
+  ├── /api/me, /api/courses, /api/admin/users   → Service Role
+  ├── /api/register                             → Service Role + RPC
+  └── /api/invitations                          → Service Role + optional E-Mail
 
 Supabase
   ├── Auth (auth.users)
   ├── Postgres (profiles, courses, invitations, …)
+  ├── RPC complete_invited_registration
   └── Row Level Security
 ```
 
@@ -138,12 +165,8 @@ Supabase
 
 ## Pakete (Frontend)
 
-Bereits in `package.json`:
-
-- `@supabase/supabase-js`
-- `@supabase/ssr`
-
-Kein `@supabase/auth-helpers-nextjs` nötig — `@supabase/ssr` reicht.
+- `@supabase/supabase-js` — Auth + DB
+- `@supabase/ssr` — Server-Client für API-Routes
 
 ---
 
@@ -151,14 +174,10 @@ Kein `@supabase/auth-helpers-nextjs` nötig — `@supabase/ssr` reicht.
 
 | Problem | Lösung |
 |---------|--------|
+| **500 auf `/api/me`, `/api/courses`, …** | `SUPABASE_SERVICE_ROLE_KEY` in `frontend/.env.local` setzen, Dev-Server neu starten |
 | „Supabase URL fehlt“ | `.env.local` prüfen, Dev-Server neu starten |
-| Login ok, kein Profil | `profiles`-Zeile für User anlegen |
-| Kurse leer / 403 | RLS + Rolle in `profiles` prüfen |
+| Login ok, kein Profil | `profiles`-Zeile für User anlegen (`role = admin\|teacher\|student`) |
+| Kurse 500 / Rekursion | Migration `005_fix_courses_rls_recursion.sql` ausführen |
 | Einladung ohne E-Mail | `RESEND_API_KEY` setzen oder Link aus UI kopieren |
-| Migration schlägt fehl | Altes Schema konflikt → neues Supabase-Projekt oder Tabellen droppen |
-
----
-
-## Django / backend/
-
-Der Ordner `backend/` ist **legacy** und wird nicht mehr für den Betrieb benötigt. Du kannst ihn für die Abgabe behalten oder entfernen — die aktive App ist **frontend + Supabase**.
+| Register schlägt mit RPC-Fehler fehl | Migration `007_register_atomic.sql` ausführen |
+| Rolle per Browser änderbar | Migration `006_profiles_role_immutable.sql` ausführen |
