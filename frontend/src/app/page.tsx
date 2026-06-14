@@ -231,10 +231,10 @@ const ease = [0.22, 1, 0.36, 1] as const;
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme, mounted } = useTheme();
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground transition-colors duration-300">
+    <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
         <BlobBackground />
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -254,7 +254,7 @@ export default function Home() {
                 className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition hover:border-primary hover:text-primary"
                 aria-label="Hell- und Dunkelmodus umschalten"
               >
-                {theme === "dark" ? "☀ Light" : "☾ Dark"}
+                {mounted ? (theme === "dark" ? "☀ Light" : "☾ Dark") : "Theme"}
               </button>
               <SessionNav />
             </nav>

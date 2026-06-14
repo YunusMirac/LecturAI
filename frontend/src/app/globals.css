@@ -99,6 +99,13 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Keine Farb-Transition beim ersten Paint (verhindert Schwarz-Weiß-Flackern). */
+html:not([data-theme-ready]) *,
+html:not([data-theme-ready]) *::before,
+html:not([data-theme-ready]) *::after {
+  transition: none !important;
+}
+
 /* Pastell-Mesh + Glas (BHT-Hub-ähnliche Farbwelt, nur Styling) */
 .bg-bht-mesh {
   background-color: #fafcfe;

@@ -4,19 +4,22 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
+  useLayoutEffect,
   useMemo,
-  useSyncExternalStore,
+  useState,
   type ReactNode,
 } from "react";
 
 export const THEME_STORAGE_KEY = "lectur-theme";
 
-/** Wird nach DOM + localStorage-Update gefeuert (gleicher Tab; `storage` nur für andere Tabs). */
-export const THEME_CHANGED_EVENT = "lectur-theme-changed";
-
 export type Theme = "dark" | "light";
 
+const DEFAULT_THEME: Theme = "dark";
+
 type ThemeContextValue = {
+  /** Erst nach Mount gesetzt — vermeidet Hydration-Mismatch am Toggle-Label. */
+  mounted: boolean;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   toggleTheme: () => void;
@@ -24,64 +27,69 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-export function applyThemeToDocument(theme: Theme) {
+export function readStoredTheme(): Theme {
+  if (typeof window === "undefined") return DEFAULT_THEME;
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === "light" ? "light" : DEFAULT_THEME;
+  } catch {
+    return DEFAULT_THEME;
+  }
+}
+
+/** Nur DOM — wird vom Blocking-Skript in layout.tsx und bei User-Aktion aufgerufen. */
+function paintTheme(theme: Theme) {
   if (typeof document === "undefined") return;
-  document.documentElement.classList.toggle("dark", theme === "dark");
+  const wantDark = theme === "dark";
+  document.documentElement.classList.toggle("dark", wantDark);
+  document.documentElement.style.colorScheme = wantDark ? "dark" : "light";
+  document.documentElement.dataset.themeReady = "";
+}
+
+export function applyThemeToDocument(theme: Theme) {
+  paintTheme(theme);
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
     /* ignore quota / private mode */
   }
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event(THEME_CHANGED_EVENT));
-  }
-}
-
-function subscribe(onStoreChange: () => void) {
-  if (typeof window === "undefined") return () => {};
-
-  const onThemeChanged = () => onStoreChange();
-  window.addEventListener(THEME_CHANGED_EVENT, onThemeChanged);
-
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== THEME_STORAGE_KEY) return;
-    if (e.newValue === "light" || e.newValue === "dark") {
-      applyThemeToDocument(e.newValue);
-    } else {
-      onStoreChange();
-    }
-  };
-  window.addEventListener("storage", onStorage);
-
-  return () => {
-    window.removeEventListener(THEME_CHANGED_EVENT, onThemeChanged);
-    window.removeEventListener("storage", onStorage);
-  };
-}
-
-function getThemeSnapshot(): Theme {
-  if (typeof document === "undefined") return "dark";
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
-function getServerThemeSnapshot(): Theme {
-  return "dark";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const theme = useSyncExternalStore(subscribe, getThemeSnapshot, getServerThemeSnapshot);
+  const [theme, setThemeState] = useState<Theme>(DEFAULT_THEME);
+  const [mounted, setMounted] = useState(false);
+
+  // Nur React-State syncen — DOM wurde bereits vom Inline-Skript gesetzt.
+  useLayoutEffect(() => {
+    setThemeState(readStoredTheme());
+    setMounted(true);
+  }, []);
+
+  // Andere Browser-Tabs
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== THEME_STORAGE_KEY) return;
+      if (e.newValue !== "light" && e.newValue !== "dark") return;
+      paintTheme(e.newValue);
+      setThemeState(e.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const setTheme = useCallback((next: Theme) => {
     applyThemeToDocument(next);
+    setThemeState(next);
   }, []);
 
   const toggleTheme = useCallback(() => {
-    applyThemeToDocument(theme === "dark" ? "light" : "dark");
-  }, [theme]);
+    const next = readStoredTheme() === "dark" ? "light" : "dark";
+    applyThemeToDocument(next);
+    setThemeState(next);
+  }, []);
 
   const value = useMemo(
-    () => ({ theme, setTheme, toggleTheme }),
-    [theme, setTheme, toggleTheme]
+    () => ({ mounted, theme, setTheme, toggleTheme }),
+    [mounted, theme, setTheme, toggleTheme]
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;

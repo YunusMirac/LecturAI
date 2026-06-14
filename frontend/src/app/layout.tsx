@@ -5,7 +5,8 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 
 import "./globals.css";
 
-const themeInitScript = `(function(){try{var t=localStorage.getItem("lectur-theme");document.documentElement.classList.toggle("dark",t!=="light");}catch(e){document.documentElement.classList.add("dark");}})();`;
+/** Läuft synchron im <head>, bevor CSS/Body gerendert werden — eine Quelle für .dark am <html>. */
+const themeInitScript = `(function(){try{var t=localStorage.getItem("lectur-theme");var d=t!=="light";document.documentElement.classList.toggle("dark",d);document.documentElement.style.colorScheme=d?"dark":"light";document.documentElement.dataset.themeReady="";}catch(e){document.documentElement.classList.add("dark");document.documentElement.style.colorScheme="dark";document.documentElement.dataset.themeReady="";}})();`;
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,10 +30,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="de" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} flex h-full min-h-full min-w-0 flex-col overflow-x-hidden bg-background text-foreground antialiased selection:bg-primary/25 selection:text-foreground`}
       >
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
