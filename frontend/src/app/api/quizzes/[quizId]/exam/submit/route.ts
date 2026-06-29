@@ -6,6 +6,7 @@ import {
 } from "@/lib/server/quiz-exam";
 import { requireQuizCourseAccess } from "@/lib/server/require-quiz-course-access";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ quizId: string }> };
 
@@ -38,7 +39,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   const result = await finalizeExamAttempt(admin, attempt, "manual");
   if (!result.ok) {
-    return NextResponse.json({ detail: result.message }, { status: 500 });
+    return internalErrorResponse("exam-submit", result.message);
   }
 
   return NextResponse.json({

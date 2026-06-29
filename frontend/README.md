@@ -34,10 +34,18 @@ Siehe `.env.example`. Wichtig:
 
 ```text
 src/
-├── app/           # Seiten + API-Routes
-├── components/    # UI
+├── app/              # Seiten + API-Routes (Server page.tsx + *Client.tsx)
+├── components/
+│   ├── dashboard/    # DashboardAsyncPage, PageUnavailable, …
+│   └── quiz/editor/  # QuestionCard, AddQuestionForm, …
 └── lib/
-    ├── api/       # Client-Fassade
-    ├── supabase/  # Supabase Clients
-    └── server/    # API-Helfer
+    ├── api/          # Client-API (apiFetch in fetch-auth.ts)
+    ├── hooks/        # useAsyncResource, useRouteParams, …
+    ├── quiz/         # domain.ts — gemeinsame Quiz-Typen
+    ├── supabase/     # Supabase Clients
+    └── server/
+        ├── access/   # course-membership (geteilter Zugriffscheck)
+        └── …         # API-Helfer, Validierung, Quiz-Logik
 ```
+
+Refactoring-Inventar: **[../docs/REFACTORING_INVENTORY.md](../docs/REFACTORING_INVENTORY.md)**

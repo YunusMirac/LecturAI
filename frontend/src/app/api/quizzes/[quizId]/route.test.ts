@@ -33,13 +33,13 @@ describe("GET /api/quizzes/[quizId]", () => {
 
   it("returns auth error", async () => {
     mockRequireManagedQuiz.mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Forbidden" }), { status: 403 }),
+      error: new Response(JSON.stringify({ detail: "Seite nicht verfügbar." }), { status: 404 }),
     });
 
     const res = await GET(new Request("http://localhost"), {
       params: Promise.resolve({ quizId: QUIZ_ID }),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("returns 404 when quiz detail missing", async () => {
@@ -80,13 +80,13 @@ describe("DELETE /api/quizzes/[quizId]", () => {
 
   it("returns auth error", async () => {
     mockRequireManagedQuiz.mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Forbidden" }), { status: 403 }),
+      error: new Response(JSON.stringify({ detail: "Seite nicht verfügbar." }), { status: 404 }),
     });
 
     const res = await DELETE(new Request("http://localhost"), {
       params: Promise.resolve({ quizId: QUIZ_ID }),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("deletes quiz for authorized teacher", async () => {

@@ -209,7 +209,7 @@ function createMockAdmin(config: MockAdminConfig = {}) {
     const chain: Record<string, unknown> = {};
     chain.eq = () => chain;
     chain.order = () => chain;
-    chain.select = (_cols?: unknown, opts?: { count?: string; head?: boolean }) => chain;
+    chain.select = () => chain;
     chain.update = (payload: Record<string, unknown>) => {
       lastUpdate = payload;
       return makeChain(null);

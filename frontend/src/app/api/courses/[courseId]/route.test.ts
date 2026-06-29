@@ -49,7 +49,7 @@ describe("PATCH /api/courses/[courseId]", () => {
 
   it("returns auth error from requireManagedCourse", async () => {
     mockRequireManagedCourse.mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Forbidden" }), { status: 403 }),
+      error: new Response(JSON.stringify({ detail: "Seite nicht verfügbar." }), { status: 404 }),
     });
 
     const res = await PATCH(
@@ -59,7 +59,7 @@ describe("PATCH /api/courses/[courseId]", () => {
       }),
       { params: Promise.resolve({ courseId: COURSE_ID }) },
     );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("updates course for authorized user", async () => {

@@ -3,6 +3,7 @@ import { allocateFreshAccessCode } from "@/lib/server/quiz-db";
 import { buildLiveHostState, fetchLiveQuizRow } from "@/lib/server/quiz-live";
 import { requireManagedQuiz } from "@/lib/server/require-managed-quiz";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ quizId: string }> };
 
@@ -74,7 +75,7 @@ export async function POST(request: Request, context: RouteContext) {
       })
       .eq("id", quizId);
 
-    if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+    if (error) return internalErrorResponse("live", error);
 
     return NextResponse.json({
       detail: "Quiz für Schüler geöffnet.",
@@ -88,7 +89,7 @@ export async function POST(request: Request, context: RouteContext) {
       .from("quizzes")
       .update({ live_open: false, live_status: "closed", access_code: null })
       .eq("id", quizId);
-    if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+    if (error) return internalErrorResponse("live", error);
     return NextResponse.json({ detail: "Live-Quiz geschlossen.", live_open: false });
   }
 
@@ -132,7 +133,7 @@ export async function POST(request: Request, context: RouteContext) {
       })
       .eq("id", quizId);
 
-    if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+    if (error) return internalErrorResponse("live", error);
     return NextResponse.json({ detail: "Quiz gestartet!", live_status: "question" });
   }
 
@@ -150,7 +151,7 @@ export async function POST(request: Request, context: RouteContext) {
         reveal_ends_at: null,
       })
       .eq("id", quizId);
-    if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+    if (error) return internalErrorResponse("live", error);
     return NextResponse.json({ detail: "Live-Runde zurückgesetzt." });
   }
 

@@ -4,6 +4,7 @@ import {
   validateCreateCourseBody,
 } from "@/lib/server/invitations-validation";
 import { NextResponse } from "next/server";
+import { internalErrorResponse, missingServiceRoleResponse } from "@/lib/server/http-errors";
 
 export async function GET(request: Request) {
   const auth = await getAuthenticatedProfile(request);
@@ -15,10 +16,7 @@ export async function GET(request: Request) {
   try {
     admin = createAdminClient();
   } catch {
-    return NextResponse.json(
-      { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-      { status: 500 },
-    );
+    return missingServiceRoleResponse("courses");
   }
 
   if (profile.role === "admin") {
@@ -26,7 +24,7 @@ export async function GET(request: Request) {
       .from("courses")
       .select("id, name, semester, created_at, updated_at")
       .order("created_at", { ascending: false });
-    if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+    if (error) return internalErrorResponse("courses", error);
     return NextResponse.json(data ?? []);
   }
 
@@ -36,7 +34,7 @@ export async function GET(request: Request) {
       .select("id, name, semester, created_at, updated_at")
       .eq("teacher_id", user.id)
       .order("created_at", { ascending: false });
-    if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+    if (error) return internalErrorResponse("courses", error);
     return NextResponse.json(data ?? []);
   }
 
@@ -46,7 +44,7 @@ export async function GET(request: Request) {
     .eq("student_id", user.id);
 
   if (memberError) {
-    return NextResponse.json({ detail: memberError.message }, { status: 500 });
+    return internalErrorResponse("courses", memberError);
   }
 
   const ids = (members ?? []).map((m) => m.course_id as string);
@@ -60,7 +58,7 @@ export async function GET(request: Request) {
     .in("id", ids)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+  if (error) return internalErrorResponse("courses", error);
   return NextResponse.json(data ?? []);
 }
 
@@ -94,10 +92,7 @@ export async function POST(request: Request) {
   try {
     admin = createAdminClient();
   } catch {
-    return NextResponse.json(
-      { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-      { status: 500 },
-    );
+    return missingServiceRoleResponse("courses");
   }
 
   const { data, error } = await admin
@@ -110,6 +105,6 @@ export async function POST(request: Request) {
     .select("id, name, semester, created_at, updated_at")
     .single();
 
-  if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+  if (error) return internalErrorResponse("courses", error);
   return NextResponse.json(data, { status: 201 });
 }

@@ -74,11 +74,7 @@ describe("GET /api/quizzes/[quizId]/exam/attempt", () => {
 
 describe("POST /api/quizzes/[quizId]/exam/attempt", () => {
   it("direct start is blocked — code required via join", async () => {
-    const { status, body } = await readJson(
-      await POST(new Request("http://localhost", { method: "POST" }), {
-        params: Promise.resolve({ quizId: QUIZ_ID }),
-      }),
-    );
+    const { status, body } = await readJson(await POST());
     expect(status).toBe(400);
     expect(body.detail).toContain("Zugangscode");
   });

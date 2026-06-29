@@ -9,7 +9,10 @@ export function usePolling(
   enabled = true,
 ) {
   const loadRef = useRef(load);
-  loadRef.current = load;
+
+  useEffect(() => {
+    loadRef.current = load;
+  }, [load]);
 
   useEffect(() => {
     if (!enabled) return;

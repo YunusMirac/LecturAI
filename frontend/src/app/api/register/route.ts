@@ -4,9 +4,21 @@ import {
   validateRegisterBody,
   type RegisterBody,
 } from "@/lib/server/register-validation";
+import {
+  GENERIC_SERVER_ERROR,
+  internalErrorResponse,
+  missingServiceRoleResponse,
+} from "@/lib/server/http-errors";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { NextResponse } from "next/server";
 
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 15 * 60 * 1000;
+
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, "register", RATE_LIMIT, RATE_WINDOW_MS);
+  if (limited) return limited;
+
   let body: RegisterBody;
   try {
     body = (await request.json()) as RegisterBody;
@@ -25,10 +37,7 @@ export async function POST(request: Request) {
   try {
     admin = createAdminClient();
   } catch {
-    return NextResponse.json(
-      { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-      { status: 500 },
-    );
+    return missingServiceRoleResponse("register");
   }
 
   const { data: inv, error: invError } = await admin
@@ -38,7 +47,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (invError) {
-    return NextResponse.json({ detail: invError.message }, { status: 500 });
+    return internalErrorResponse("register:invitation", invError);
   }
 
   const invCheck = validateInvitationForRegister(inv, email);
@@ -70,7 +79,7 @@ export async function POST(request: Request) {
   }
 
   if (!authUser.user) {
-    return NextResponse.json({ detail: "Nutzer konnte nicht angelegt werden." }, { status: 500 });
+    return NextResponse.json({ detail: GENERIC_SERVER_ERROR }, { status: 500 });
   }
 
   const userId = authUser.user.id;
@@ -84,7 +93,7 @@ export async function POST(request: Request) {
 
   if (rpcError) {
     await admin.auth.admin.deleteUser(userId);
-    return NextResponse.json({ detail: rpcError.message }, { status: 500 });
+    return internalErrorResponse("register:rpc", rpcError);
   }
 
   return NextResponse.json(

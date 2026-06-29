@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextResponse } from "next/server";
 
 import { DELETE, GET } from "@/app/api/courses/[courseId]/members/route";
 
@@ -99,7 +100,7 @@ describe("GET /api/courses/[courseId]/members", () => {
 
   it("returns 401 when not authenticated", async () => {
     vi.mocked(getAuthenticatedProfile).mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Nicht angemeldet." }), { status: 401 }),
+      error: NextResponse.json({ detail: "Nicht angemeldet." }, { status: 401 }),
     });
 
     const res = await GET(new Request("http://localhost/api/courses/x/members"), {

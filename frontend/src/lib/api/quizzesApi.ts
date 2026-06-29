@@ -1,11 +1,7 @@
-import { authHeaders, parseApiDetail } from "@/lib/api/fetch-auth";
-import { getAccessToken } from "@/lib/api/authApi";
+import { apiFetch, apiFetchForm, type ApiFail } from "@/lib/api/fetch-auth";
+import type { QuizDifficulty, QuizStatus, QuizType } from "@/lib/quiz/domain";
 
-export type QuizDifficulty = "easy" | "medium" | "hard";
-
-export type QuizType = "live" | "exam";
-
-export type QuizStatus = "generating" | "draft" | "published" | "failed";
+export type { QuizDifficulty, QuizStatus, QuizType } from "@/lib/quiz/domain";
 
 export type QuizSummary = {
   id: string;
@@ -40,6 +36,7 @@ export type QuizQuestion = {
   quiz_id: string;
   prompt: string;
   sort_order: number;
+  difficulty?: QuizDifficulty;
   created_at: string;
   choices: QuizChoice[];
 };
@@ -61,159 +58,87 @@ export type CourseDetail = {
   can_manage: boolean;
 };
 
-type ApiFail = { ok: false; message: string };
-
-export async function fetchCourseDetail(courseId: string):
-  Promise<{ ok: true; course: CourseDetail } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/courses/${encodeURIComponent(courseId)}`, {
-      headers,
-      cache: "no-store",
-    });
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Kurs konnte nicht geladen werden.") };
-    return { ok: true, course: data as CourseDetail };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+function mapFail(result: ApiFail): { ok: false; message: string; notFound?: boolean } {
+  return result;
 }
 
-export async function fetchCourseQuizzes(courseId: string):
-  Promise<{ ok: true; quizzes: QuizSummary[] } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/courses/${encodeURIComponent(courseId)}/quizzes`, {
-      headers,
-      cache: "no-store",
-    });
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Quizze konnten nicht geladen werden.") };
-    return { ok: true, quizzes: Array.isArray(data) ? (data as QuizSummary[]) : [] };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function fetchCourseDetail(courseId: string) {
+  const result = await apiFetch<CourseDetail>(`/api/courses/${encodeURIComponent(courseId)}`, {
+    fallback: "Kurs konnte nicht geladen werden.",
+  });
+  if (!result.ok) return mapFail(result);
+  return { ok: true as const, course: result.data };
 }
 
-export async function createQuizFromPdf(
-  courseId: string,
-  form: FormData,
-): Promise<{ ok: true; quizId: string } | ApiFail> {
-  try {
-    const token = await getAccessToken();
-    if (!token) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/courses/${encodeURIComponent(courseId)}/quizzes`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    });
-    const data = (await res.json().catch(() => ({}))) as { quiz_id?: string; detail?: string };
-    if (!res.ok && res.status !== 202) {
-      return { ok: false, message: parseApiDetail(data, "Quiz konnte nicht erstellt werden.") };
-    }
-    if (!data.quiz_id) return { ok: false, message: "Unerwartete Antwort vom Server." };
-    return { ok: true, quizId: data.quiz_id };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function fetchCourseQuizzes(courseId: string) {
+  const result = await apiFetch<QuizSummary[]>(
+    `/api/courses/${encodeURIComponent(courseId)}/quizzes`,
+    { fallback: "Quizze konnten nicht geladen werden." },
+  );
+  if (!result.ok) return mapFail(result);
+  return { ok: true as const, quizzes: Array.isArray(result.data) ? result.data : [] };
 }
 
-export async function deleteQuiz(quizId: string): Promise<{ ok: true; detail: string } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/quizzes/${encodeURIComponent(quizId)}`, {
-      method: "DELETE",
-      headers,
-    });
-    const data = (await res.json().catch(() => ({}))) as { detail?: string };
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Löschen fehlgeschlagen.") };
-    return { ok: true, detail: data.detail ?? "Gelöscht." };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function createQuizFromPdf(courseId: string, form: FormData) {
+  const result = await apiFetchForm<{ quiz_id?: string }>(
+    `/api/courses/${encodeURIComponent(courseId)}/quizzes`,
+    form,
+    "Quiz konnte nicht erstellt werden.",
+  );
+  if (!result.ok) return mapFail(result);
+  if (!result.data.quiz_id) return { ok: false as const, message: "Unerwartete Antwort vom Server." };
+  return { ok: true as const, quizId: result.data.quiz_id };
 }
 
-export async function fetchQuizDetail(quizId: string):
-  Promise<{ ok: true; quiz: QuizDetail } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/quizzes/${encodeURIComponent(quizId)}`, {
-      headers,
-      cache: "no-store",
-    });
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Quiz konnte nicht geladen werden.") };
-    return { ok: true, quiz: data as QuizDetail };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function deleteQuiz(quizId: string) {
+  const result = await apiFetch<{ detail?: string }>(`/api/quizzes/${encodeURIComponent(quizId)}`, {
+    method: "DELETE",
+    fallback: "Löschen fehlgeschlagen.",
+  });
+  if (!result.ok) return mapFail(result);
+  return { ok: true as const, detail: result.data.detail ?? "Gelöscht." };
 }
 
-export async function publishQuiz(quizId: string): Promise<{ ok: true; detail: string } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/quizzes/${encodeURIComponent(quizId)}/publish`, {
-      method: "POST",
-      headers,
-    });
-    const data = (await res.json().catch(() => ({}))) as { detail?: string };
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Veröffentlichen fehlgeschlagen.") };
-    return { ok: true, detail: data.detail ?? "Veröffentlicht." };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function fetchQuizDetail(quizId: string) {
+  const result = await apiFetch<QuizDetail>(`/api/quizzes/${encodeURIComponent(quizId)}`, {
+    fallback: "Quiz konnte nicht geladen werden.",
+  });
+  if (!result.ok) return mapFail(result);
+  return { ok: true as const, quiz: result.data };
 }
 
-export async function updateQuestion(
-  quizId: string,
-  questionId: string,
-  prompt: string,
+export async function publishQuiz(quizId: string) {
+  const result = await apiFetch<{ detail?: string }>(
+    `/api/quizzes/${encodeURIComponent(quizId)}/publish`,
+    { method: "POST", fallback: "Veröffentlichen fehlgeschlagen." },
+  );
+  if (!result.ok) return mapFail(result);
+  return { ok: true as const, detail: result.data.detail ?? "Veröffentlicht." };
+}
+
+async function quizMutation(
+  path: string,
+  init: RequestInit,
+  fallback: string,
 ): Promise<{ ok: true } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(
-      `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}`,
-      { method: "PATCH", headers, body: JSON.stringify({ prompt }) },
-    );
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Speichern fehlgeschlagen.") };
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+  const result = await apiFetch<unknown>(path, { ...init, fallback });
+  return result.ok ? { ok: true } : mapFail(result);
 }
 
-export async function deleteQuestion(
-  quizId: string,
-  questionId: string,
-): Promise<{ ok: true } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
+export async function updateQuestion(quizId: string, questionId: string, prompt: string) {
+  return quizMutation(
+    `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}`,
+    { method: "PATCH", body: JSON.stringify({ prompt }) },
+    "Speichern fehlgeschlagen.",
+  );
+}
 
-    const res = await fetch(
-      `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}`,
-      { method: "DELETE", headers },
-    );
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Löschen fehlgeschlagen.") };
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function deleteQuestion(quizId: string, questionId: string) {
+  return quizMutation(
+    `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}`,
+    { method: "DELETE" },
+    "Löschen fehlgeschlagen.",
+  );
 }
 
 export async function updateChoice(
@@ -221,82 +146,45 @@ export async function updateChoice(
   questionId: string,
   choiceId: string,
   patch: { text?: string; is_correct?: boolean },
-): Promise<{ ok: true } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(
-      `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/choices/${encodeURIComponent(choiceId)}`,
-      { method: "PATCH", headers, body: JSON.stringify(patch) },
-    );
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Speichern fehlgeschlagen.") };
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+) {
+  return quizMutation(
+    `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/choices/${encodeURIComponent(choiceId)}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+    "Speichern fehlgeschlagen.",
+  );
 }
 
 export async function addQuestion(
   quizId: string,
-  payload: { prompt: string; choices: { text: string; is_correct: boolean }[] },
-): Promise<{ ok: true } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(`/api/quizzes/${encodeURIComponent(quizId)}/questions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Frage konnte nicht angelegt werden.") };
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+  payload: {
+    prompt: string;
+    choices: { text: string; is_correct: boolean }[];
+    difficulty?: QuizDifficulty;
+  },
+) {
+  return quizMutation(
+    `/api/quizzes/${encodeURIComponent(quizId)}/questions`,
+    { method: "POST", body: JSON.stringify(payload) },
+    "Frage konnte nicht angelegt werden.",
+  );
 }
 
 export async function addChoice(
   quizId: string,
   questionId: string,
   payload: { text: string; is_correct?: boolean },
-): Promise<{ ok: true } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(
-      `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/choices`,
-      { method: "POST", headers, body: JSON.stringify(payload) },
-    );
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Antwort konnte nicht angelegt werden.") };
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+) {
+  return quizMutation(
+    `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/choices`,
+    { method: "POST", body: JSON.stringify(payload) },
+    "Antwort konnte nicht angelegt werden.",
+  );
 }
 
-export async function deleteChoice(
-  quizId: string,
-  questionId: string,
-  choiceId: string,
-): Promise<{ ok: true } | ApiFail> {
-  try {
-    const headers = await authHeaders();
-    if (!headers) return { ok: false, message: "Nicht angemeldet." };
-
-    const res = await fetch(
-      `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/choices/${encodeURIComponent(choiceId)}`,
-      { method: "DELETE", headers },
-    );
-    const data: unknown = await res.json().catch(() => ({}));
-    if (!res.ok) return { ok: false, message: parseApiDetail(data, "Löschen fehlgeschlagen.") };
-    return { ok: true };
-  } catch {
-    return { ok: false, message: "Netzwerkfehler." };
-  }
+export async function deleteChoice(quizId: string, questionId: string, choiceId: string) {
+  return quizMutation(
+    `/api/quizzes/${encodeURIComponent(quizId)}/questions/${encodeURIComponent(questionId)}/choices/${encodeURIComponent(choiceId)}`,
+    { method: "DELETE" },
+    "Löschen fehlgeschlagen.",
+  );
 }

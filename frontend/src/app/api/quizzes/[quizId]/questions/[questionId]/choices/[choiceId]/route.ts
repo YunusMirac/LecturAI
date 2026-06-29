@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/server/api-helpers";
 import { requireManagedQuiz } from "@/lib/server/require-managed-quiz";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = {
   params: Promise<{ quizId: string; questionId: string; choiceId: string }>;
@@ -82,7 +83,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("[choiceId]", error);
   }
   if (!data) {
     return NextResponse.json({ detail: "Antwort nicht gefunden." }, { status: 404 });
@@ -125,7 +126,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     .select("id");
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("[choiceId]", error);
   }
   if (!data?.length) {
     return NextResponse.json({ detail: "Antwort nicht gefunden." }, { status: 404 });

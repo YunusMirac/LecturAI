@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/server/api-helpers";
 import { requireManagedQuiz } from "@/lib/server/require-managed-quiz";
 import { MAX_CHOICES } from "@/lib/server/quiz-validation";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ quizId: string; questionId: string }> };
 
@@ -80,7 +81,7 @@ export async function POST(request: Request, context: RouteContext) {
     .single();
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("choices", error);
   }
 
   return NextResponse.json(data, { status: 201 });

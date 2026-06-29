@@ -1,5 +1,6 @@
 import type { AuthProfile } from "@/lib/server/api-helpers";
 import type { CourseRow } from "@/lib/server/course-access";
+import { notFoundResponse } from "@/lib/server/http-errors";
 import { requireCourseAccess } from "@/lib/server/require-course-access";
 import { NextResponse } from "next/server";
 
@@ -15,12 +16,7 @@ export async function requireManagedCourse(
   if ("error" in access) return { error: access.error };
 
   if (!access.canManage) {
-    return {
-      error: NextResponse.json(
-        { detail: "Keine Berechtigung für diesen Kurs." },
-        { status: 403 },
-      ),
-    };
+    return { error: notFoundResponse() };
   }
 
   return { ok: true, course: access.course, profile: access.profile };

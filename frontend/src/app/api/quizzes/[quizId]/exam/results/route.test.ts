@@ -38,7 +38,7 @@ describe("GET /api/quizzes/[quizId]/exam/results", () => {
     const { status } = await readJson(
       await GET(new Request("http://localhost"), { params: Promise.resolve({ quizId: QUIZ_ID }) }),
     );
-    expect(status).toBe(403);
+    expect(status).toBe(404);
   });
 
   it("returns results for teacher", async () => {

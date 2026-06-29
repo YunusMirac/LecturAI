@@ -2,6 +2,7 @@ import { createAdminClient, getAuthenticatedProfile } from "@/lib/server/api-hel
 import { buildLivePlayState, computePoints, fetchLiveQuizRow } from "@/lib/server/quiz-live";
 import { loadQuizDetail } from "@/lib/server/quiz-db";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ quizId: string }> };
 
@@ -126,7 +127,7 @@ export async function POST(request: Request, context: RouteContext) {
   });
 
   if (insertError) {
-    return NextResponse.json({ detail: insertError.message }, { status: 500 });
+    return internalErrorResponse("play", insertError);
   }
 
   if (points > 0) {

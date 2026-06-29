@@ -19,6 +19,7 @@ import {
   isCourseMember,
 } from "@/lib/server/student-course-enrollment";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 export async function POST(request: Request) {
   const auth = await getAuthenticatedProfile(request);
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("invitations", error);
   }
 
   const registerUrl = frontendRegisterUrl(inviteToken);

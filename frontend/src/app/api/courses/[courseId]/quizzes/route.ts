@@ -11,6 +11,7 @@ import {
   validateCreateQuizSettings,
 } from "@/lib/server/quiz-validation";
 import { after, NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ courseId: string }> };
 
@@ -37,7 +38,7 @@ export async function GET(request: Request, context: RouteContext) {
   const { data, error } = await query.order("created_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("quizzes", error);
   }
 
   const rows = data ?? [];
@@ -78,11 +79,29 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  const settings: QuizSettings = {
-    question_count: Number(formData.get("question_count") ?? 5),
-    choice_count: Number(formData.get("choice_count") ?? 4),
-    difficulty: (String(formData.get("difficulty") ?? "medium") as QuizDifficulty),
-  };
+  const choice_count = Number(formData.get("choice_count") ?? 4);
+  const quizTypeRaw = String(formData.get("quiz_type") ?? "live");
+  const quiz_type: QuizType = quizTypeRaw === "exam" ? "exam" : "live";
+
+  let settings: QuizSettings;
+  if (quiz_type === "exam") {
+    settings = {
+      choice_count,
+      pool_counts: {
+        easy: Number(formData.get("pool_easy") ?? 0),
+        medium: Number(formData.get("pool_medium") ?? 0),
+        hard: Number(formData.get("pool_hard") ?? 0),
+      },
+    };
+    settings.question_count =
+      settings.pool_counts!.easy + settings.pool_counts!.medium + settings.pool_counts!.hard;
+  } else {
+    settings = {
+      question_count: Number(formData.get("question_count") ?? 5),
+      choice_count,
+      difficulty: String(formData.get("difficulty") ?? "medium") as QuizDifficulty,
+    };
+  }
 
   const settingsCheck = validateCreateQuizSettings(settings);
   if ("status" in settingsCheck) {
@@ -94,9 +113,6 @@ export async function POST(request: Request, context: RouteContext) {
     typeof titleInput === "string" && titleInput.trim()
       ? titleInput.trim()
       : defaultQuizTitle(managed.course.name);
-
-  const quizTypeRaw = String(formData.get("quiz_type") ?? "live");
-  const quiz_type: QuizType = quizTypeRaw === "exam" ? "exam" : "live";
 
   const admin = createAdminClient();
   const { data: quizRow, error: insertError } = await admin
@@ -113,10 +129,7 @@ export async function POST(request: Request, context: RouteContext) {
     .single();
 
   if (insertError || !quizRow) {
-    return NextResponse.json(
-      { detail: insertError?.message ?? "Quiz konnte nicht angelegt werden." },
-      { status: 500 },
-    );
+    return internalErrorResponse("quizzes:create", insertError);
   }
 
   const quizId = (quizRow as { id: string }).id;
@@ -132,7 +145,7 @@ export async function POST(request: Request, context: RouteContext) {
 
   if (uploadError) {
     await admin.from("quizzes").delete().eq("id", quizId);
-    return NextResponse.json({ detail: uploadError.message }, { status: 500 });
+    return internalErrorResponse("quizzes", uploadError);
   }
 
   await admin.from("quizzes").update({ source_pdf_path: pdfPath }).eq("id", quizId);

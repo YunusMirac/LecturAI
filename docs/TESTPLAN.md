@@ -1,9 +1,9 @@
 # LecturAI — Testplan (Abgabe)
 
-Automatisierte Tests: `cd frontend && npm run test`  
+Automatisierte Tests: `cd frontend && npm run test` (446 Unit-Tests)  
 Manuelle Tests: unten mit echtem Supabase-Projekt.
 
-**Voraussetzungen:** Migrationen 001–**009** im SQL Editor, `frontend/.env.local` mit allen Keys (inkl. `GEMINI_API_KEY` für Quiz-KI), Dev-Server (`npm run dev`).
+**Voraussetzungen:** Migrationen 001–**011** im SQL Editor, `frontend/.env.local` mit allen Keys (inkl. `GEMINI_API_KEY` für Quiz-KI), Dev-Server (`npm run dev`).
 
 ---
 
@@ -133,6 +133,44 @@ Details zur KI-Pipeline: **[QUIZ_AI.md](QUIZ_AI.md)**
 | Alle antworten vor 30 s | Schneller Übergang (~5 s Reveal) |
 
 Details: **[LIVE_QUIZ.md](LIVE_QUIZ.md)**
+
+---
+
+## 10. Klausur-Pool & individuelle Instanz
+
+**Voraussetzung:** Migration **011**, veröffentlichte Klausur mit Pool-Fragen, Lehrer + mindestens ein Schüler (Inkognito).
+
+### Lehrer: Pool generieren
+
+1. Kurs → Quiz aus PDF → Typ **Klausur**
+2. Pool-Anzahlen setzen (z. B. 10 leicht / 10 mittel / 20 schwer)
+3. Generieren → Editor → Veröffentlichen
+
+### Lehrer: Klausur konfigurieren
+
+1. Klausur-Seite → **Klausur-Einstellungen**
+2. Zeitlimit (z. B. 60 Min.) und Draw-Counts (z. B. 5 / 5 / 10) speichern
+3. **Für Schüler öffnen** → Code kopieren
+
+| Aktion | Erwartung |
+|--------|-----------|
+| Öffnen ohne gespeicherte Config (Pool-Klausur) | Fehlermeldung 409 |
+| Draw > Pool pro Stufe | Validierungsfehler beim Speichern |
+| Config ändern bei geöffneter Klausur | Gesperrt (409) |
+
+### Schüler: Individuelle Klausur
+
+1. Code eingeben → Klausur starten
+2. Seite neu laden → **gleiche Fragen, gleiche Reihenfolge**
+3. Zweiter Schüler (Inkognito) → **andere Fragenauswahl** (bei gleichem Draw aus größerem Pool)
+
+| Aktion | Erwartung |
+|--------|-----------|
+| Reload während Bearbeitung | Snapshot unverändert |
+| Abgabe | Score bezieht sich nur auf individuelle Fragen |
+| Antwort auf fremde Frage-ID (DevTools) | Server lehnt ab |
+
+Automatisierte Tests: `quiz-exam-draw.test.ts`, `quiz-exam-pool.integration.test.ts`, `exam/route.test.ts` (PATCH/POST).
 
 ---
 

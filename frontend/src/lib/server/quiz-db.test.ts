@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildPdfStoragePath,
+  countQuestionsByDifficulty,
   defaultQuizTitle,
   insertGeneratedQuestions,
   loadQuizDetail,
@@ -13,6 +14,8 @@ import {
   QUIZ_ID,
   baseSettings,
   makeGeneratedPayload,
+  makePoolQuestions,
+  poolSettings,
 } from "@/lib/server/quiz-fixtures";
 
 const mockQuizMaybeSingle = vi.fn();
@@ -90,6 +93,18 @@ describe("parseSettingsFromRow", () => {
       choice_count: 4,
       difficulty: "medium",
     });
+  });
+
+  it("parses pool settings from row", () => {
+    const row = { settings_json: poolSettings } as QuizRow;
+    expect(parseSettingsFromRow(row)).toEqual(poolSettings);
+  });
+});
+
+describe("countQuestionsByDifficulty", () => {
+  it("aggregates questions by difficulty", () => {
+    const counts = countQuestionsByDifficulty(makePoolQuestions({ easy: 2, medium: 3, hard: 1 }));
+    expect(counts).toEqual({ easy: 2, medium: 3, hard: 1 });
   });
 });
 
@@ -175,7 +190,32 @@ describe("insertGeneratedQuestions", () => {
       quiz_id: QUIZ_ID,
       prompt: "Frage 1?",
       sort_order: 0,
+      difficulty: "medium",
     });
+  });
+
+  it("stores difficulty from generated payload", async () => {
+    mockQuestionInsert.mockImplementation(() => ({
+      select: () => ({
+        single: vi.fn().mockResolvedValue({
+          data: { id: "new-q" },
+          error: null,
+        }),
+      }),
+    }));
+    mockChoiceInsert.mockResolvedValue({ error: null });
+
+    const payload = {
+      questions: [
+        {
+          prompt: "Leicht?",
+          difficulty: "easy" as const,
+          choices: makeGeneratedPayload(1, 2).questions[0]!.choices,
+        },
+      ],
+    };
+    await insertGeneratedQuestions(createMockAdmin() as never, QUIZ_ID, payload);
+    expect(mockQuestionInsert.mock.calls[0]?.[0]).toMatchObject({ difficulty: "easy" });
   });
 
   it("throws when question insert fails", async () => {

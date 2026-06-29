@@ -106,7 +106,7 @@ describe("requireManagedQuiz", () => {
 
     const result = await requireManagedQuiz(new Request("http://localhost"), QUIZ_ID);
     expect("error" in result).toBe(true);
-    if ("error" in result) expect(result.error.status).toBe(403);
+    if ("error" in result) expect(result.error.status).toBe(404);
   });
 
   it("allows course owner teacher", async () => {

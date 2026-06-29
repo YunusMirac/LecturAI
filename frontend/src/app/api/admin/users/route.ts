@@ -1,5 +1,6 @@
 import { createAdminClient, getAuthenticatedProfile } from "@/lib/server/api-helpers";
 import { NextResponse } from "next/server";
+import { internalErrorResponse, missingServiceRoleResponse } from "@/lib/server/http-errors";
 
 export async function GET(request: Request) {
   const auth = await getAuthenticatedProfile(request);
@@ -13,10 +14,7 @@ export async function GET(request: Request) {
   try {
     admin = createAdminClient();
   } catch {
-    return NextResponse.json(
-      { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-      { status: 500 },
-    );
+    return missingServiceRoleResponse("admin-users");
   }
 
   const { data, error } = await admin
@@ -24,6 +22,6 @@ export async function GET(request: Request) {
     .select("id, email, role, created_at, updated_at")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+  if (error) return internalErrorResponse("users", error);
   return NextResponse.json(data ?? []);
 }

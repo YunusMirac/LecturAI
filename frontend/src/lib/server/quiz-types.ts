@@ -1,13 +1,28 @@
-export type QuizDifficulty = "easy" | "medium" | "hard";
+export type {
+  DifficultyCounts,
+  QuizDifficulty,
+  QuizStatus,
+  QuizType,
+} from "@/lib/quiz/domain";
+export {
+  emptyDifficultyCounts,
+  totalDifficultyCounts,
+} from "@/lib/quiz/domain";
 
-export type QuizType = "live" | "exam";
-
-export type QuizStatus = "generating" | "draft" | "published" | "failed";
+import type { DifficultyCounts, QuizDifficulty, QuizStatus, QuizType } from "@/lib/quiz/domain";
 
 export type QuizSettings = {
-  question_count: number;
   choice_count: number;
-  difficulty: QuizDifficulty;
+  /** Legacy: Live-Quiz und alte Klausuren */
+  question_count?: number;
+  difficulty?: QuizDifficulty;
+  /** Exam-Pool: Anzahl Fragen pro Schwierigkeit */
+  pool_counts?: DifficultyCounts;
+};
+
+export type ExamConfig = {
+  duration_seconds: number;
+  draw_counts: DifficultyCounts;
 };
 
 export type QuizRow = {
@@ -17,6 +32,7 @@ export type QuizRow = {
   status: QuizStatus;
   quiz_type?: QuizType;
   settings_json: QuizSettings;
+  exam_config_json?: ExamConfig | null;
   source_pdf_path: string | null;
   generation_error: string | null;
   created_by: string;
@@ -38,6 +54,7 @@ export type QuizQuestionRow = {
   quiz_id: string;
   prompt: string;
   sort_order: number;
+  difficulty: QuizDifficulty;
   created_at: string;
 };
 
@@ -56,9 +73,15 @@ export type GeneratedChoice = {
 
 export type GeneratedQuestion = {
   prompt: string;
+  difficulty?: QuizDifficulty;
   choices: GeneratedChoice[];
 };
 
 export type GeneratedQuizPayload = {
   questions: GeneratedQuestion[];
+};
+
+export type AttemptQuestionSnapshot = {
+  question_id: string;
+  sort_order: number;
 };

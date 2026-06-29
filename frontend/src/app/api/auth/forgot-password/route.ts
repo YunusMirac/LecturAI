@@ -2,11 +2,22 @@ import { buildPasswordResetRedirectUrl } from "@/lib/api/authApi";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveSiteOrigin } from "@/lib/supabase/env";
 import {
+  internalErrorResponse,
+  missingServiceRoleResponse,
+} from "@/lib/server/http-errors";
+import {
   validateForgotPasswordEmail,
 } from "@/lib/server/password-validation";
+import { enforceRateLimit } from "@/lib/server/rate-limit";
 import { NextResponse } from "next/server";
 
+const RATE_LIMIT = 10;
+const RATE_WINDOW_MS = 15 * 60 * 1000;
+
 export async function POST(request: Request) {
+  const limited = enforceRateLimit(request, "forgot-password", RATE_LIMIT, RATE_WINDOW_MS);
+  if (limited) return limited;
+
   let body: { email?: string };
   try {
     body = (await request.json()) as { email?: string };
@@ -23,17 +34,14 @@ export async function POST(request: Request) {
   try {
     admin = createAdminClient();
   } catch {
-    return NextResponse.json(
-      { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-      { status: 500 },
-    );
+    return missingServiceRoleResponse("forgot-password");
   }
 
   const redirectTo = buildPasswordResetRedirectUrl(resolveSiteOrigin(request));
   const { error } = await admin.auth.resetPasswordForEmail(validated.email, { redirectTo });
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("forgot-password", error);
   }
 
   return NextResponse.json({

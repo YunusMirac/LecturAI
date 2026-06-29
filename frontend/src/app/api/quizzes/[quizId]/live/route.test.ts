@@ -51,13 +51,13 @@ describe("GET /api/quizzes/[quizId]/live", () => {
 
   it("returns auth error", async () => {
     mockRequireManagedQuiz.mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Forbidden" }), { status: 403 }),
+      error: new Response(JSON.stringify({ detail: "Seite nicht verfügbar." }), { status: 404 }),
     });
 
     const res = await GET(new Request("http://localhost"), {
       params: Promise.resolve({ quizId: QUIZ_ID }),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("returns 404 when quiz row missing", async () => {
@@ -148,9 +148,11 @@ describe("POST /api/quizzes/[quizId]/live", () => {
       { params: Promise.resolve({ quizId: QUIZ_ID }) },
     );
     expect(res.status).toBe(200);
-    expect(capturedUpdate?.seconds_per_question).toBe(30);
-    expect(capturedUpdate?.live_status).toBe("lobby");
-    expect(capturedUpdate?.access_code).toBe("K7M3NP");
+    const update = capturedUpdate as unknown as Record<string, unknown>;
+    expect(update).not.toBeNull();
+    expect(update.seconds_per_question).toBe(30);
+    expect(update.live_status).toBe("lobby");
+    expect(update.access_code).toBe("K7M3NP");
     expect(mockGenerateAccessCode).toHaveBeenCalled();
   });
 
@@ -190,8 +192,10 @@ describe("POST /api/quizzes/[quizId]/live", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.access_code).toBe("NEW456");
-    expect(capturedUpdate?.access_code).toBe("NEW456");
-    expect(capturedUpdate?.access_code).not.toBe("OLD123");
+    const update2 = capturedUpdate as unknown as Record<string, unknown>;
+    expect(update2).not.toBeNull();
+    expect(update2.access_code).toBe("NEW456");
+    expect(update2.access_code).not.toBe("OLD123");
   });
 
   it("start requires lobby status", async () => {

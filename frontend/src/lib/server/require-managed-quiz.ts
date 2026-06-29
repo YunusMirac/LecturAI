@@ -4,6 +4,7 @@ import {
   type AuthProfile,
 } from "@/lib/server/api-helpers";
 import { canManageCourse, isValidCourseId } from "@/lib/server/course-access";
+import { internalErrorResponse, missingServiceRoleResponse, notFoundResponse } from "@/lib/server/http-errors";
 import type { QuizRow } from "@/lib/server/quiz-types";
 import { NextResponse } from "next/server";
 
@@ -38,10 +39,7 @@ export async function requireManagedQuiz(
     admin = createAdminClient();
   } catch {
     return {
-      error: NextResponse.json(
-        { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-        { status: 500 },
-      ),
+      error: missingServiceRoleResponse("requireManagedQuiz"),
     };
   }
 
@@ -54,7 +52,7 @@ export async function requireManagedQuiz(
     .maybeSingle();
 
   if (quizError) {
-    return { error: NextResponse.json({ detail: quizError.message }, { status: 500 }) };
+    return { error: internalErrorResponse("requireManagedQuiz", quizError) };
   }
   if (!quiz) {
     return { error: NextResponse.json({ detail: "Quiz nicht gefunden." }, { status: 404 }) };
@@ -62,7 +60,7 @@ export async function requireManagedQuiz(
 
   const row = quiz as QuizRow;
   if (!isValidCourseId(row.course_id)) {
-    return { error: NextResponse.json({ detail: "Kurs des Quiz ungültig." }, { status: 500 }) };
+    return { error: internalErrorResponse("requireManagedQuiz:courseId") };
   }
 
   const { data: course, error: courseError } = await admin
@@ -77,12 +75,7 @@ export async function requireManagedQuiz(
 
   const teacherId = String((course as { teacher_id: string }).teacher_id);
   if (!canManageCourse(auth.profile.role, auth.profile.id, teacherId)) {
-    return {
-      error: NextResponse.json(
-        { detail: "Keine Berechtigung für dieses Quiz." },
-        { status: 403 },
-      ),
-    };
+    return { error: notFoundResponse() };
   }
 
   return { ok: true, quiz: row, courseTeacherId: teacherId, profile: auth.profile };

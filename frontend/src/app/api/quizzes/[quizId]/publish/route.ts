@@ -3,6 +3,7 @@ import { loadQuizDetail } from "@/lib/server/quiz-db";
 import { requireManagedQuiz } from "@/lib/server/require-managed-quiz";
 import { validateQuizForPublish } from "@/lib/server/quiz-validation";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ quizId: string }> };
 
@@ -47,7 +48,7 @@ export async function POST(request: Request, context: RouteContext) {
     .eq("id", quizId);
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("publish", error);
   }
 
   return NextResponse.json({

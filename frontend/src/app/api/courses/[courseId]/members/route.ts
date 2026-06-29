@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/course-members";
 import { requireManagedCourse } from "@/lib/server/require-managed-course";
 import { NextResponse } from "next/server";
+import { internalErrorResponse, missingServiceRoleResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ courseId: string }> };
 
@@ -32,10 +33,7 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     admin = createAdminClient();
   } catch {
-    return NextResponse.json(
-      { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-      { status: 500 },
-    );
+    return missingServiceRoleResponse("course-members");
   }
 
   const { data: course, error: courseError } = await admin
@@ -45,7 +43,7 @@ export async function GET(request: Request, context: RouteContext) {
     .maybeSingle();
 
   if (courseError) {
-    return NextResponse.json({ detail: courseError.message }, { status: 500 });
+    return internalErrorResponse("members", courseError);
   }
   if (!course) {
     return NextResponse.json({ detail: "Kurs nicht gefunden." }, { status: 404 });
@@ -65,7 +63,7 @@ export async function GET(request: Request, context: RouteContext) {
     .order("joined_at", { ascending: false });
 
   if (membersError) {
-    return NextResponse.json({ detail: membersError.message }, { status: 500 });
+    return internalErrorResponse("members", membersError);
   }
 
   const registered = (memberRows ?? [])
@@ -81,7 +79,7 @@ export async function GET(request: Request, context: RouteContext) {
     .order("created_at", { ascending: false });
 
   if (invitesError) {
-    return NextResponse.json({ detail: invitesError.message }, { status: 500 });
+    return internalErrorResponse("members", invitesError);
   }
 
   const members: CourseMemberEntry[] = mergeMembersAndInvitations(
@@ -140,7 +138,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       .select("student_id");
 
     if (deleteError) {
-      return NextResponse.json({ detail: deleteError.message }, { status: 500 });
+      return internalErrorResponse("members", deleteError);
     }
     membershipDeleted = (deletedRows ?? []).length > 0;
   }
@@ -154,7 +152,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     .select("id");
 
   if (inviteError) {
-    return NextResponse.json({ detail: inviteError.message }, { status: 500 });
+    return internalErrorResponse("members", inviteError);
   }
 
   const invitationRevoked = (revokedRows ?? []).length > 0;

@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { POST } from "@/app/api/auth/forgot-password/route";
+import { GENERIC_SERVER_ERROR } from "@/lib/server/http-errors";
+import { resetRateLimitStore } from "@/lib/server/rate-limit";
 
 const mockResetPasswordForEmail = vi.fn();
 
@@ -19,6 +21,7 @@ async function readJson(res: Response) {
 describe("POST /api/auth/forgot-password", () => {
   beforeEach(() => {
     mockResetPasswordForEmail.mockReset();
+    resetRateLimitStore();
   });
 
   it("returns 400 for invalid email", async () => {
@@ -62,6 +65,6 @@ describe("POST /api/auth/forgot-password", () => {
     );
     const { status, body } = await readJson(res);
     expect(status).toBe(500);
-    expect(body.detail).toBe("rate limit");
+    expect(body.detail).toBe(GENERIC_SERVER_ERROR);
   });
 });

@@ -1,23 +1,36 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  countQuestionsInPool,
+  parseExamConfig,
   parseQuizSettings,
+  resolveEffectiveDrawCounts,
+  resolveExamDuration,
   validateCreateQuizSettings,
+  validateExamConfig,
   validateGeneratedQuizPayload,
   validateQuestionForPublish,
   validateQuizForPublish,
 } from "@/lib/server/quiz-validation";
 import {
   MAX_CHOICES,
+  MAX_EXAM_DURATION_SECONDS,
+  MAX_POOL_PER_DIFFICULTY,
   MAX_QUESTIONS,
   MIN_CHOICES,
+  MIN_EXAM_DURATION_SECONDS,
+  MIN_POOL_TOTAL,
   MIN_QUESTIONS,
 } from "@/lib/quiz-labels";
 import {
+  baseExamConfig,
   baseSettings,
   makeGeneratedPayload,
+  makePoolGeneratedPayload,
   makeQuestion,
+  poolSettings,
 } from "@/lib/server/quiz-fixtures";
+import { EXAM_DURATION_SECONDS } from "@/lib/quiz-exam-constants";
 
 describe("parseQuizSettings", () => {
   it("parses valid settings object", () => {
@@ -44,6 +57,117 @@ describe("parseQuizSettings", () => {
       expect(parseQuizSettings({ ...baseSettings, difficulty })?.difficulty).toBe(difficulty);
     }
   });
+
+  it("parses pool_counts settings", () => {
+    expect(parseQuizSettings(poolSettings)).toEqual(poolSettings);
+  });
+
+  it("derives question_count from pool_counts sum", () => {
+    const parsed = parseQuizSettings({
+      choice_count: 4,
+      pool_counts: { easy: 10, medium: 10, hard: 20 },
+    });
+    expect(parsed?.question_count).toBe(40);
+  });
+
+  it("rejects invalid pool_counts", () => {
+    expect(parseQuizSettings({ choice_count: 4, pool_counts: { easy: -1, medium: 0, hard: 0 } })).toBeNull();
+    expect(parseQuizSettings({ choice_count: 4, pool_counts: { easy: 1.5, medium: 0, hard: 0 } })).toBeNull();
+  });
+});
+
+describe("parseExamConfig", () => {
+  it("parses valid exam config", () => {
+    expect(parseExamConfig(baseExamConfig)).toEqual(baseExamConfig);
+  });
+
+  it("rejects invalid config", () => {
+    expect(parseExamConfig(null)).toBeNull();
+    expect(parseExamConfig({ duration_seconds: 60 })).toBeNull();
+  });
+});
+
+describe("resolveExamDuration", () => {
+  it("uses config duration when set", () => {
+    expect(resolveExamDuration({ duration_seconds: 1800, draw_counts: { easy: 1, medium: 0, hard: 0 } })).toBe(1800);
+  });
+
+  it("falls back to default constant", () => {
+    expect(resolveExamDuration(null)).toBe(EXAM_DURATION_SECONDS);
+  });
+});
+
+describe("validateCreateQuizSettings pool", () => {
+  it("accepts valid pool settings", () => {
+    expect(validateCreateQuizSettings(poolSettings)).toEqual({ ok: true });
+  });
+
+  it("rejects pool total below minimum", () => {
+    const r = validateCreateQuizSettings({
+      choice_count: 4,
+      pool_counts: { easy: 1, medium: 1, hard: 0 },
+    });
+    expect("status" in r).toBe(true);
+    if ("status" in r) expect(r.body.pool_total?.[0]).toContain(String(MIN_POOL_TOTAL));
+  });
+
+  it("rejects pool total above maximum", () => {
+    const r = validateCreateQuizSettings({
+      choice_count: 4,
+      pool_counts: { easy: 31, medium: 31, hard: 31 },
+    });
+    expect("status" in r).toBe(true);
+  });
+
+  it("rejects per-level above max", () => {
+    const r = validateCreateQuizSettings({
+      choice_count: 4,
+      pool_counts: { easy: MAX_POOL_PER_DIFFICULTY + 1, medium: 0, hard: 0 },
+    });
+    expect("status" in r).toBe(true);
+  });
+});
+
+describe("validateExamConfig", () => {
+  const pool = { easy: 10, medium: 10, hard: 20 };
+
+  it("accepts valid draw within pool", () => {
+    expect(
+      validateExamConfig(pool, { easy: 5, medium: 5, hard: 10 }, 3600),
+    ).toEqual({ ok: true });
+  });
+
+  it("rejects draw above pool", () => {
+    const r = validateExamConfig(pool, { easy: 11, medium: 0, hard: 0 }, 3600);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.body.draw_easy?.[0]).toContain("10");
+  });
+
+  it("rejects zero total draw", () => {
+    const r = validateExamConfig(pool, { easy: 0, medium: 0, hard: 0 }, 3600);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects duration below minimum", () => {
+    const r = validateExamConfig(pool, { easy: 1, medium: 0, hard: 0 }, MIN_EXAM_DURATION_SECONDS - 1);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects duration above maximum", () => {
+    const r = validateExamConfig(pool, { easy: 1, medium: 0, hard: 0 }, MAX_EXAM_DURATION_SECONDS + 1);
+    expect(r.ok).toBe(false);
+  });
+
+  it("accepts boundary durations", () => {
+    expect(validateExamConfig(pool, { easy: 1, medium: 0, hard: 0 }, MIN_EXAM_DURATION_SECONDS).ok).toBe(true);
+    expect(validateExamConfig(pool, { easy: 1, medium: 0, hard: 0 }, MAX_EXAM_DURATION_SECONDS).ok).toBe(true);
+  });
+
+  for (let n = 0; n <= 5; n += 1) {
+    it(`draw easy=${n} valid when pool has 5`, () => {
+      expect(validateExamConfig(pool, { easy: n, medium: 0, hard: 0 }, 3600).ok).toBe(n > 0);
+    });
+  }
 });
 
 describe("validateCreateQuizSettings", () => {
@@ -163,6 +287,21 @@ describe("validateGeneratedQuizPayload", () => {
   it("rejects non-object payload", () => {
     expect(validateGeneratedQuizPayload("invalid", baseSettings)).toBe(false);
   });
+
+  it("accepts pool payload with difficulty tags", () => {
+    const payload = makePoolGeneratedPayload({ easy: 2, medium: 2, hard: 1 }, 4);
+    expect(validateGeneratedQuizPayload(payload, poolSettings)).toBe(true);
+  });
+
+  it("rejects pool payload missing difficulty", () => {
+    const payload = makeGeneratedPayload(5, 4, "medium");
+    expect(validateGeneratedQuizPayload(payload, poolSettings)).toBe(false);
+  });
+
+  it("rejects pool payload with wrong bucket count", () => {
+    const payload = makePoolGeneratedPayload({ easy: 5, medium: 0, hard: 0 }, 4);
+    expect(validateGeneratedQuizPayload(payload, poolSettings)).toBe(false);
+  });
 });
 
 describe("validateQuestionForPublish", () => {
@@ -244,5 +383,53 @@ describe("validateQuizForPublish", () => {
       ]),
     ];
     expect(validateQuizForPublish(questions)).toEqual({ ok: true });
+  });
+});
+
+describe("countQuestionsInPool", () => {
+  it("counts questions by difficulty", () => {
+    const questions = [
+      makeQuestion("Q1?", [], { difficulty: "easy" }),
+      makeQuestion("Q2?", [], { difficulty: "easy" }),
+      makeQuestion("Q3?", [], { difficulty: "medium" }),
+      makeQuestion("Q4?", [], { difficulty: "hard" }),
+    ];
+    expect(countQuestionsInPool(questions)).toEqual({ easy: 2, medium: 1, hard: 1 });
+  });
+
+  it("returns all zeros for empty list", () => {
+    expect(countQuestionsInPool([])).toEqual({ easy: 0, medium: 0, hard: 0 });
+  });
+
+  it("falls back to medium for null difficulty", () => {
+    const q = makeQuestion("Q?", [], { difficulty: undefined });
+    expect(countQuestionsInPool([q])).toEqual({ easy: 0, medium: 1, hard: 0 });
+  });
+
+  it("ignores unknown difficulty values", () => {
+    const q = makeQuestion("Q?", [], { difficulty: "extreme" as never });
+    expect(countQuestionsInPool([q])).toEqual({ easy: 0, medium: 0, hard: 0 });
+  });
+});
+
+describe("resolveEffectiveDrawCounts", () => {
+  const pool = { easy: 5, medium: 5, hard: 5 };
+
+  it("uses examConfig draw_counts when present", () => {
+    const config = { duration_seconds: 3600, draw_counts: { easy: 2, medium: 2, hard: 1 } };
+    expect(resolveEffectiveDrawCounts(config, pool, 15)).toEqual({ easy: 2, medium: 2, hard: 1 });
+  });
+
+  it("falls back to pool counts when no examConfig", () => {
+    expect(resolveEffectiveDrawCounts(null, pool, 15)).toEqual(pool);
+  });
+
+  it("falls back to pool counts when examConfig has no draw_counts", () => {
+    const config = { duration_seconds: 3600, draw_counts: undefined as never };
+    expect(resolveEffectiveDrawCounts(config, pool, 15)).toEqual(pool);
+  });
+
+  it("falls back to pool counts when examConfig is undefined", () => {
+    expect(resolveEffectiveDrawCounts(undefined, pool, 0)).toEqual(pool);
   });
 });

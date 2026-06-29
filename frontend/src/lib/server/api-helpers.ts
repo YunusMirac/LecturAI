@@ -3,23 +3,19 @@ import { createClient } from "@/lib/supabase/server";
 import type { User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-export type ProfileRole = "admin" | "teacher" | "student";
+import {
+  internalErrorResponse,
+  missingServiceRoleResponse,
+} from "@/lib/server/http-errors";
+
+import type { ProfileRole } from "@/lib/auth";
+export type { ProfileRole };
 
 export type AuthProfile = {
   id: string;
   email: string;
   role: ProfileRole;
 };
-
-function missingServiceRoleResponse() {
-  return NextResponse.json(
-    {
-      detail:
-        "SUPABASE_SERVICE_ROLE_KEY fehlt in frontend/.env.local — siehe docs/SUPABASE_SETUP.md",
-    },
-    { status: 500 },
-  );
-}
 
 async function resolveUser(request?: Request): Promise<User | null> {
   if (request) {
@@ -59,7 +55,7 @@ export async function getAuthenticatedProfile(
   try {
     admin = createAdminClient();
   } catch {
-    return { error: missingServiceRoleResponse() };
+    return { error: missingServiceRoleResponse("getAuthenticatedProfile") };
   }
 
   const { data: profile, error: profileError } = await admin
@@ -69,9 +65,7 @@ export async function getAuthenticatedProfile(
     .maybeSingle();
 
   if (profileError) {
-    return {
-      error: NextResponse.json({ detail: profileError.message }, { status: 500 }),
-    };
+    return { error: internalErrorResponse("getAuthenticatedProfile", profileError) };
   }
 
   if (!profile) {
@@ -137,7 +131,8 @@ export async function sendInvitationEmail(to: string, registerUrl: string): Prom
       }),
     });
     return res.ok;
-  } catch {
+  } catch (err) {
+    console.error("[sendInvitationEmail] Resend request failed:", err);
     return false;
   }
 }
@@ -174,7 +169,8 @@ export async function sendCourseAddedEmail(
       }),
     });
     return res.ok;
-  } catch {
+  } catch (err) {
+    console.error("[sendCourseAddedEmail] Resend request failed:", err);
     return false;
   }
 }

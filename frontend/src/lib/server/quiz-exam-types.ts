@@ -16,6 +16,7 @@ export type ExamAttemptState = {
   started_at: string;
   submitted_at: string | null;
   seconds_remaining: number;
+  duration_seconds: number;
   current_index: number;
   question_count: number;
   questions: ExamQuestionView[];

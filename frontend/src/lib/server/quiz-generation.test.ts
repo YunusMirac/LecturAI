@@ -143,7 +143,11 @@ describe("runQuizGenerationJob", () => {
     expect(mockInsertGeneratedQuestions).toHaveBeenCalledWith(
       expect.anything(),
       QUIZ_ID,
-      payload,
+      expect.objectContaining({
+        questions: expect.arrayContaining([
+          expect.objectContaining({ prompt: "Frage 1?", choices: expect.any(Array) }),
+        ]),
+      }),
     );
     expect(mockUpdateEq).toHaveBeenCalled();
   });

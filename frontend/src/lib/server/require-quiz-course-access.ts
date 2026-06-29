@@ -3,6 +3,7 @@ import { isValidCourseId } from "@/lib/server/course-access";
 import { requireCourseAccess } from "@/lib/server/require-course-access";
 import { isValidQuizId } from "@/lib/server/require-managed-quiz";
 import type { QuizRow } from "@/lib/server/quiz-types";
+import { internalErrorResponse, missingServiceRoleResponse } from "@/lib/server/http-errors";
 import { NextResponse } from "next/server";
 
 type QuizCourseAccessResult =
@@ -33,23 +34,20 @@ export async function requireQuizCourseAccess(
     admin = createAdminClient();
   } catch {
     return {
-      error: NextResponse.json(
-        { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-        { status: 500 },
-      ),
+      error: missingServiceRoleResponse("requireQuizCourseAccess"),
     };
   }
 
   const { data: quiz, error: quizError } = await admin
     .from("quizzes")
     .select(
-      "id, course_id, title, status, settings_json, source_pdf_path, generation_error, created_by, published_at, created_at, updated_at, access_code, live_open, live_status, quiz_type, exam_open",
+      "id, course_id, title, status, settings_json, exam_config_json, source_pdf_path, generation_error, created_by, published_at, created_at, updated_at, access_code, live_open, live_status, quiz_type, exam_open",
     )
     .eq("id", quizId)
     .maybeSingle();
 
   if (quizError) {
-    return { error: NextResponse.json({ detail: quizError.message }, { status: 500 }) };
+    return { error: internalErrorResponse("requireQuizCourseAccess", quizError) };
   }
   if (!quiz) {
     return { error: NextResponse.json({ detail: "Quiz nicht gefunden." }, { status: 404 }) };
@@ -64,7 +62,7 @@ export async function requireQuizCourseAccess(
   };
 
   if (!isValidCourseId(row.course_id)) {
-    return { error: NextResponse.json({ detail: "Kurs des Quiz ungültig." }, { status: 500 }) };
+    return { error: internalErrorResponse("requireQuizCourseAccess:courseId") };
   }
 
   const access = await requireCourseAccess(request, row.course_id);

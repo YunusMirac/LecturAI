@@ -146,6 +146,7 @@ describe("POST /api/quizzes/[quizId]/questions", () => {
         quiz_id: QUIZ_ID,
         prompt: "Frage?",
         sort_order: 3,
+        difficulty: "medium",
         created_at: "2026-01-01",
       },
       error: null,
@@ -176,5 +177,76 @@ describe("POST /api/quizzes/[quizId]/questions", () => {
     expect(status).toBe(201);
     expect(body.id).toBe(QUESTION_ID);
     expect(body.choices).toHaveLength(2);
+  });
+
+  it("creates exam question with difficulty hard", async () => {
+    mockRequireManagedQuiz.mockResolvedValue({
+      ok: true,
+      quiz: { id: QUIZ_ID, status: "draft", quiz_type: "exam" },
+    });
+    mockMaxOrderMaybeSingle.mockResolvedValue({ data: { sort_order: 0 } });
+    mockQuestionInsertSingle.mockResolvedValue({
+      data: {
+        id: QUESTION_ID,
+        quiz_id: QUIZ_ID,
+        prompt: "Schwer?",
+        sort_order: 1,
+        difficulty: "hard",
+        created_at: "2026-01-01",
+      },
+      error: null,
+    });
+    mockChoiceInsertSelect.mockResolvedValue({
+      data: [
+        { id: "c1", question_id: QUESTION_ID, text: "A", is_correct: true, sort_order: 0 },
+        { id: "c2", question_id: QUESTION_ID, text: "B", is_correct: false, sort_order: 1 },
+      ],
+      error: null,
+    });
+
+    const { status, body } = await readJson(
+      await POST(
+        new Request("http://localhost", {
+          method: "POST",
+          body: JSON.stringify({
+            prompt: "Schwer?",
+            difficulty: "hard",
+            choices: [
+              { text: "A", is_correct: true },
+              { text: "B", is_correct: false },
+            ],
+          }),
+        }),
+        { params: Promise.resolve({ quizId: QUIZ_ID }) },
+      ),
+    );
+    expect(status).toBe(201);
+    expect(body.difficulty).toBe("hard");
+  });
+
+  it("rejects invalid difficulty for exam quiz", async () => {
+    mockRequireManagedQuiz.mockResolvedValue({
+      ok: true,
+      quiz: { id: QUIZ_ID, status: "draft", quiz_type: "exam" },
+    });
+
+    const { status, body } = await readJson(
+      await POST(
+        new Request("http://localhost", {
+          method: "POST",
+          body: JSON.stringify({
+            prompt: "Frage?",
+            difficulty: "insane",
+            choices: [
+              { text: "A", is_correct: true },
+              { text: "B", is_correct: false },
+            ],
+          }),
+        }),
+        { params: Promise.resolve({ quizId: QUIZ_ID }) },
+      ),
+    );
+    expect(status).toBe(400);
+    expect(body.difficulty).toBeDefined();
   });
 });

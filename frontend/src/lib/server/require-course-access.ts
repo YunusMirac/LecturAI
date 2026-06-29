@@ -3,11 +3,16 @@ import {
   getAuthenticatedProfile,
   type AuthProfile,
 } from "@/lib/server/api-helpers";
+import { loadCourseMembership } from "@/lib/server/access/course-membership";
 import {
-  canManageCourse,
   isValidCourseId,
   type CourseRow,
 } from "@/lib/server/course-access";
+import {
+  internalErrorResponse,
+  missingServiceRoleResponse,
+  notFoundResponse,
+} from "@/lib/server/http-errors";
 import { NextResponse } from "next/server";
 
 type CourseAccessResult =
@@ -34,10 +39,7 @@ export async function requireCourseAccess(
     admin = createAdminClient();
   } catch {
     return {
-      error: NextResponse.json(
-        { detail: "SUPABASE_SERVICE_ROLE_KEY fehlt in .env.local" },
-        { status: 500 },
-      ),
+      error: missingServiceRoleResponse("requireCourseAccess"),
     };
   }
 
@@ -49,7 +51,7 @@ export async function requireCourseAccess(
 
   if (courseError) {
     return {
-      error: NextResponse.json({ detail: courseError.message }, { status: 500 }),
+      error: internalErrorResponse("requireCourseAccess", courseError),
     };
   }
   if (!course) {
@@ -59,29 +61,16 @@ export async function requireCourseAccess(
   }
 
   const row = course as CourseRow;
+  const membership = await loadCourseMembership(courseId, auth.profile.id, auth.profile.role);
 
-  const { data: membership } = await admin
-    .from("course_members")
-    .select("student_id")
-    .eq("course_id", courseId)
-    .eq("student_id", auth.profile.id)
-    .maybeSingle();
-
-  const isMember =
-    auth.profile.role === "admin" ||
-    row.teacher_id === auth.profile.id ||
-    membership !== null;
-
-  if (!isMember) {
-    return {
-      error: NextResponse.json({ detail: "Kein Zugriff auf diesen Kurs." }, { status: 403 }),
-    };
+  if (!membership) {
+    return { error: notFoundResponse() };
   }
 
   return {
     ok: true,
     course: row,
     profile: auth.profile,
-    canManage: canManageCourse(auth.profile.role, auth.profile.id, row.teacher_id),
+    canManage: membership.canManage,
   };
 }

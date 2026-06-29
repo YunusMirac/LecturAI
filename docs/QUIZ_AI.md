@@ -31,6 +31,8 @@ Client pollt `GET /api/quizzes/[quizId]` alle ~2,5 s bis `draft` oder `failed`.
 
 ## JSON-Schema (KI-Output)
 
+### Live-Quiz (Legacy)
+
 ```json
 {
   "questions": [
@@ -45,11 +47,18 @@ Client pollt `GET /api/quizzes/[quizId]` alle ~2,5 s bis `draft` oder `failed`.
 }
 ```
 
+### Klausur-Pool (exam)
+
+Pro Frage zusätzlich `"difficulty": "easy" | "medium" | "hard"`. Die KI erzeugt z. B. 10 leichte + 10 mittlere + 20 schwere Fragen (`settings_json.pool_counts`).
+
 Validierung in `frontend/src/lib/server/quiz-validation.ts`:
 
-- Anzahl Fragen ≈ `settings.question_count` (±2 Toleranz)
+- **Live:** Anzahl Fragen ≈ `settings.question_count` (±2 Toleranz)
+- **Klausur-Pool:** Pro Schwierigkeitsstufe ≈ `pool_counts.*` (±2 Toleranz), jedes Question-Objekt braucht `difficulty`
 - Pro Frage exakt `settings.choice_count` Antworten
 - Genau eine Antwort mit `is_correct: true`
+
+Fragen werden in `quiz_questions.difficulty` gespeichert (Migration `011_exam_pool.sql`).
 
 ## Implementierung
 

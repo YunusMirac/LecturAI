@@ -14,7 +14,7 @@ Vollständige Prüfung von Auth, Einladungen, Registrierung und Kurs-System.
 | Kurse anzeigen | ✅ MVP | Rollenbasiert über `/api/courses` |
 | Kurse anlegen | ✅ MVP | Nur Lehrkraft/Admin |
 | Sicherheit | ✅ Verbessert | Migration 006 blockiert Role-Escalation |
-| Tests | ✅ 89 Unit-Tests | `npm run test` |
+| Tests | ✅ 446 Unit-Tests | `npm run test` |
 | Abgabe-Tauglichkeit | ✅ Ja | Mit Migrationen 001–007 in Supabase |
 
 ---

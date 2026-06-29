@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET, POST } from "@/app/api/courses/[courseId]/quizzes/route";
+import { GENERIC_SERVER_ERROR } from "@/lib/server/http-errors";
 import { COURSE_ID, QUIZ_ID, TEACHER_ID } from "@/lib/server/quiz-fixtures";
 
 const mockRequireCourseAccess = vi.fn();
@@ -8,6 +9,7 @@ const mockRequireManagedCourse = vi.fn();
 const mockQuizzesOrder = vi.fn();
 const mockQuizzesEq = vi.fn();
 const mockQuizInsertSingle = vi.fn();
+const mockQuizInsert = vi.fn();
 const mockQuizDeleteEq = vi.fn();
 const mockQuizUpdateEq = vi.fn();
 const mockStorageUpload = vi.fn();
@@ -54,11 +56,14 @@ vi.mock("@/lib/server/api-helpers", () => ({
               return chain;
             },
           }),
-          insert: () => ({
-            select: () => ({
-              single: mockQuizInsertSingle,
-            }),
-          }),
+          insert: (data: unknown) => {
+            mockQuizInsert(data);
+            return {
+              select: () => ({
+                single: mockQuizInsertSingle,
+              }),
+            };
+          },
           delete: () => ({ eq: mockQuizDeleteEq }),
           update: () => ({ eq: mockQuizUpdateEq }),
         };
@@ -91,13 +96,13 @@ describe("GET /api/courses/[courseId]/quizzes", () => {
 
   it("returns auth error from requireCourseAccess", async () => {
     mockRequireCourseAccess.mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Forbidden" }), { status: 403 }),
+      error: new Response(JSON.stringify({ detail: "Seite nicht verfügbar." }), { status: 404 }),
     });
 
     const res = await GET(new Request("http://localhost"), {
       params: Promise.resolve({ courseId: COURSE_ID }),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("returns quiz list for authorized teacher", async () => {
@@ -270,7 +275,68 @@ describe("POST /api/courses/[courseId]/quizzes", () => {
       ),
     );
     expect(status).toBe(500);
-    expect(body.detail).toBe("Upload failed");
+    expect(body.detail).toBe(GENERIC_SERVER_ERROR);
     expect(mockQuizDeleteEq).toHaveBeenCalled();
+  });
+
+  it("creates exam quiz with pool_counts settings", async () => {
+    mockRequireManagedCourse.mockResolvedValue({
+      ok: true,
+      course: { id: COURSE_ID, name: "Analysis", teacher_id: TEACHER_ID },
+      profile: { id: TEACHER_ID, role: "teacher", email: "t@school.de" },
+    });
+    mockQuizInsertSingle.mockResolvedValue({ data: { id: QUIZ_ID }, error: null });
+    mockStorageUpload.mockResolvedValue({ error: null });
+    mockQuizUpdateEq.mockResolvedValue({ error: null });
+
+    const form = new FormData();
+    form.append("pdf", pdfFile());
+    form.append("quiz_type", "exam");
+    form.append("choice_count", "4");
+    form.append("pool_easy", "10");
+    form.append("pool_medium", "10");
+    form.append("pool_hard", "20");
+
+    const { status, body } = await readJson(
+      await POST(
+        new Request("http://localhost", { method: "POST", body: form }),
+        { params: Promise.resolve({ courseId: COURSE_ID }) },
+      ),
+    );
+    expect(status).toBe(202);
+    expect(body.quiz_id).toBe(QUIZ_ID);
+    expect(mockQuizInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        settings_json: expect.objectContaining({
+          pool_counts: { easy: 10, medium: 10, hard: 20 },
+        }),
+        quiz_type: "exam",
+      }),
+    );
+  });
+
+  it("rejects invalid exam pool total", async () => {
+    mockRequireManagedCourse.mockResolvedValue({
+      ok: true,
+      course: { id: COURSE_ID, name: "Analysis", teacher_id: TEACHER_ID },
+      profile: { id: TEACHER_ID, role: "teacher" },
+    });
+
+    const form = new FormData();
+    form.append("pdf", pdfFile());
+    form.append("quiz_type", "exam");
+    form.append("choice_count", "4");
+    form.append("pool_easy", "1");
+    form.append("pool_medium", "1");
+    form.append("pool_hard", "0");
+
+    const { status, body } = await readJson(
+      await POST(
+        new Request("http://localhost", { method: "POST", body: form }),
+        { params: Promise.resolve({ courseId: COURSE_ID }) },
+      ),
+    );
+    expect(status).toBe(400);
+    expect(body.pool_total).toBeDefined();
   });
 });

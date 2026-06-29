@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/invitations/preview/route";
+import { GENERIC_SERVER_ERROR } from "@/lib/server/http-errors";
+import { resetRateLimitStore } from "@/lib/server/rate-limit";
 
 const mockMaybeSingle = vi.fn();
 
@@ -23,6 +25,7 @@ async function readJson(res: Response) {
 describe("GET /api/invitations/preview", () => {
   beforeEach(() => {
     mockMaybeSingle.mockReset();
+    resetRateLimitStore();
   });
 
   it("returns 400 when token is missing", async () => {
@@ -69,6 +72,6 @@ describe("GET /api/invitations/preview", () => {
     const res = await GET(new Request("http://localhost/api/invitations/preview?token=x"));
     const { status, body } = await readJson(res);
     expect(status).toBe(500);
-    expect(body.detail).toBe("db down");
+    expect(body.detail).toBe(GENERIC_SERVER_ERROR);
   });
 });

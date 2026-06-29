@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/server/api-helpers";
 import { loadExamResults } from "@/lib/server/quiz-exam";
+import { notFoundResponse } from "@/lib/server/http-errors";
 import { requireQuizCourseAccess } from "@/lib/server/require-quiz-course-access";
 import { NextResponse } from "next/server";
 
@@ -11,7 +12,7 @@ export async function GET(request: Request, context: RouteContext) {
   if ("error" in access) return access.error;
 
   if (!access.canManage) {
-    return NextResponse.json({ detail: "Keine Berechtigung." }, { status: 403 });
+    return notFoundResponse();
   }
 
   const quiz = access.quiz as { quiz_type?: string; title: string };

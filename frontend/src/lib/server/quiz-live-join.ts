@@ -1,6 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+import { internalErrorResponse } from "@/lib/server/http-errors";
+
 import { isValidAccessCodeFormat, normalizeAccessCode } from "@/lib/server/quiz-access-code";
 import type { AuthProfile } from "@/lib/server/api-helpers";
 
@@ -111,7 +113,7 @@ export async function upsertLiveParticipant(
     user_id: profile.id,
     display_email: profile.email,
   });
-  if (error) return NextResponse.json({ detail: error.message }, { status: 500 });
+  if (error) return internalErrorResponse("upsertLiveParticipant", error);
   return null;
 }
 

@@ -38,13 +38,13 @@ describe("POST /api/quizzes/[quizId]/publish", () => {
 
   it("returns auth error from requireManagedQuiz", async () => {
     mockRequireManagedQuiz.mockResolvedValue({
-      error: new Response(JSON.stringify({ detail: "Forbidden" }), { status: 403 }),
+      error: new Response(JSON.stringify({ detail: "Seite nicht verfügbar." }), { status: 404 }),
     });
 
     const res = await POST(new Request("http://localhost/api/quizzes/x", { method: "POST" }), {
       params: Promise.resolve({ quizId: QUIZ_ID }),
     });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 
   it("rejects publish while generating", async () => {

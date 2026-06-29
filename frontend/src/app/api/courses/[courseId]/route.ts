@@ -3,6 +3,7 @@ import { validateUpdateCourseBody } from "@/lib/server/course-access";
 import { requireCourseAccess } from "@/lib/server/require-course-access";
 import { requireManagedCourse } from "@/lib/server/require-managed-course";
 import { NextResponse } from "next/server";
+import { internalErrorResponse } from "@/lib/server/http-errors";
 
 type RouteContext = { params: Promise<{ courseId: string }> };
 
@@ -50,7 +51,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     .single();
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("[courseId]", error);
   }
 
   return NextResponse.json(data);
@@ -65,7 +66,7 @@ export async function DELETE(request: Request, context: RouteContext) {
   const { error } = await admin.from("courses").delete().eq("id", courseId);
 
   if (error) {
-    return NextResponse.json({ detail: error.message }, { status: 500 });
+    return internalErrorResponse("[courseId]", error);
   }
 
   return NextResponse.json({
